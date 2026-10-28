@@ -1,0 +1,213 @@
+InternGuard — AI-Based Job, Internship & Email Scam Detection System
+1. Project Overview
+
+InternGuard is an AI-powered cybersecurity system that evaluates job offers, internship opportunities, and now incoming emails for signs of fraud — before the user ever has to click into them. It doesn't just classify something as "scam" or "not scam"; it produces an interpretable risk score, lists the specific red flags it found, and explains its reasoning in plain language.
+
+The system works across four input channels:
+
+    Pasted text (WhatsApp/Telegram/LinkedIn messages)
+    Screenshots (via OCR)
+    URLs (recruitment or application links)
+    Emails — analyzed at the inbox level, before the user opens them
+
+The email pre-open capability is the newest and most technically interesting addition: instead of waiting for a student to open a suspicious email and potentially click a link or reply with personal details, InternGuard scans incoming mail as it arrives (or as it sits in the inbox list) and flags risk directly in the mail client's list view — similar to how Gmail shows a "this message looks suspicious" banner, but with a full explainable risk breakdown.
+2. Why Add Email Pre-Open Detection
+
+Most job/internship scams these days arrive by email, not just chat apps. The danger with email specifically is:
+
+    Opening an email alone can trigger tracking pixels, confirming the address is "live" to scammers.
+    Preview panes sometimes render remote images or scripts automatically.
+    Once opened, a curious click is one tap away.
+
+So the goal is to score the risk before the user opens the message at all, using only what's available without fully rendering it: sender metadata, subject line, snippet/preheader text, and — where the API allows it — a safe headless parse of the body and attachments server-side (never rendered on the user's device).
+
+This shifts InternGuard from "detect scams in content a user already found suspicious enough to paste in" to "proactively flag risk the moment mail arrives."
+3. System Architecture (Updated)
+
+                                 USER'S INBOX / INPUT
+                                          │
+          ┌───────────────┬──────────────┼───────────────┬────────────────┐
+          ↓               ↓              ↓                ↓
+        TEXT          SCREENSHOT        URL            EMAIL (NEW)
+          │               │              │                │
+          ↓               ↓              ↓                ↓
+         NLP            OCR         URL Analyzer     Header + Metadata
+          │               │              │            Analysis + Safe
+          │               │              │            Server-Side Body
+          │               │              │            Parse (no render)
+          │               │              │                │
+          └───────────────┴──────────────┴────────────────┘
+                                 ↓
+                       FEATURE EXTRACTION LAYER
+                                 │
+        ┌────────────┬──────────┼───────────┬─────────────┐
+        ↓             ↓         ↓           ↓             ↓
+   Linguistic     Financial  Reputation  Sender/Domain  Attachment
+    Features      Features    Features    Authenticity   Risk (NEW)
+    (NLP)         (payment    (URL/       (SPF/DKIM/
+                  requests)   domain)     DMARC, reply-to
+                                          mismatch)
+        └────────────┴──────────┴───────────┴─────────────┘
+                                 ↓
+                          UNIFIED ML MODEL
+                                 ↓
+                          RISK CALCULATOR
+                                 ↓
+                      EXPLAINABLE OUTPUT LAYER
+                                 │
+        ┌────────────────┬──────┴───────────┬────────────────┐
+        ↓                ↓                  ↓                ↓
+   Risk Score        Reasons         Recommendation     Inbox Badge
+   (0–100)         (why flagged)     (verify/report/    (pre-open,
+                                       proceed)          in mail list)
+
+4. New Module — Email Pre-Open Scam Scanner
+4.1 What it looks at before opening
+Signal category 	What is checked
+Sender authenticity 	SPF, DKIM, DMARC pass/fail; sender domain age; free-mail-domain-posing-as-company (e.g. hr.microsoft@gmail.com)
+Display name spoofing 	Display name says "Google Careers" but the actual address is unrelated
+Reply-to mismatch 	"From" domain differs from "Reply-To" domain
+Subject line patterns 	Urgency, all-caps, emoji spam, "Congratulations," "Selected," "Act now"
+Snippet/preheader text 	Same NLP red-flag detection used in Module 1 (payment requests, urgency, secrecy) applied to the preview text only
+Link destination (unclicked) 	Extract URLs from raw HTML source server-side, run through URL Analyzer module — without the client ever fetching them
+Attachment metadata 	File type (e.g. .exe, .scr disguised as .pdf.exe), macro-enabled Office docs, mismatched extension vs. MIME type
+Bulk-send fingerprint 	Whether the message matches known mass-mailing patterns (identical template sent to many recipients — detectable via headers, not content snooping)
+4.2 How "before opening" is technically achieved
+
+Full email content should never render on the client until the user chooses to open it. There are two realistic integration paths for a student project:
+
+Option A — IMAP/Gmail API polling (recommended for a project)
+
+    Use the Gmail API (users.messages.list + format=metadata) or IMAP FETCH ... BODY.PEEK[HEADER] to pull headers/snippet without marking the message as read or triggering remote content.
+    Run risk analysis server-side on this data.
+    Push a risk badge back via a lightweight browser extension or a custom inbox view, so the student sees "🔴 High Risk" next to the subject line before clicking.
+
+Option B — Browser extension for Gmail/Outlook Web
+
+    Injects a small badge into the inbox list DOM using the metadata already loaded by the webmail client (which is fetched safely by Google/Microsoft's own servers, not the user's browser).
+    This avoids needing raw IMAP access and is the more demo-friendly option.
+
+Option C — Outlook/Gmail Add-in (stretch goal)
+
+    A proper mail add-in that runs your risk model as a background check on new mail arrival and shows a native banner.
+
+For a first working prototype, Option B (browser extension reading list-view metadata) is the fastest to build and demo, with Option A as the "real" backend architecture to describe in your report.
+4.3 Privacy and ethics note (important for your writeup)
+
+    The system should only ever request the minimum scopes needed (e.g., Gmail API gmail.metadata or gmail.readonly, never gmail.send or modify scopes).
+    Full body content should be parsed server-side in a sandboxed way (no execution of scripts/macros) and never permanently stored — only derived risk features should be logged.
+    This is worth a slide in your presentation: it shows you thought about handling sensitive personal data (emails) responsibly, which strengthens the cybersecurity angle of your project.
+
+5. Unified Risk Scoring (All Channels)
+
+Keep one consistent, explainable scoring rubric so email, text, screenshot, and URL analysis all report on the same scale:
+
+Linguistic/Text Risk        20/25
+Financial Request Risk      25/25
+URL/Domain Risk             20/20
+Sender Authenticity Risk    15/15   ← new, email-specific
+Attachment Risk             10/10   ← new, email-specific
+Company Verification Risk    5/15
+                           --------
+Total                       95/110  → normalized to /100
+
+Output format stays the same across channels:
+
+RISK SCORE: 91/100 — HIGH RISK
+Flagged: upfront payment request, domain mismatch, DKIM fail, urgency language
+Recommendation: Do not open attachments. Verify sender through official company channel.
+
+6. Roadmap
+Phase 0 — Setup & Problem Definition (Week 1)
+
+    Finalize problem statement, objectives, and scope document
+    Define what counts as "legitimate," "suspicious," and "scam" for labeling
+    Set up GitHub repo, project structure, and environment (Python + FastAPI backend, React frontend)
+    Literature review: existing phishing/scam detectors and their limitations (for your novelty section)
+
+Phase 1 — Core Text Classifier (Weeks 2–4)
+
+    Collect/label dataset: legitimate internship posts vs. scam messages (start with public phishing datasets + manually curated job-scam examples, clearly marking any synthetic data)
+    Build baseline models: TF-IDF + Logistic Regression, Random Forest, XGBoost
+    Build the linguistic feature extractor: urgency, financial pressure, credential requests, unrealistic claims, secrecy phrases
+    Build the interpretable risk scorer (weighted rubric, not just raw model probability)
+    Simple frontend: paste text → get risk score + explanation
+
+Deliverable: working text-only scam detector with explainable output
+Phase 2 — URL & Payment Analysis (Weeks 5–6)
+
+    Build URL feature extractor: domain age (via WHOIS API), HTTPS check, TLD suspicion list, subdomain count, redirect chain check
+    Build domain/company mismatch checker (compare claimed org name against sender/URL domain using fuzzy string matching)
+    Integrate payment/fee-request detector as its own scored module
+    Combine with Phase 1 output into the unified risk rubric
+
+Deliverable: text + URL combined risk score
+Phase 3 — Screenshot (OCR) Analysis (Weeks 7–8)
+
+    Integrate Tesseract or EasyOCR for image-to-text extraction
+    Route OCR output through the same NLP pipeline from Phase 1
+    Handle noisy OCR text (typos, broken formatting) with cleanup/preprocessing
+    Add screenshot upload to frontend, with highlighted suspicious phrases overlaid on the image if time allows
+
+Deliverable: multimodal input (text + screenshot) → unified risk score
+Phase 4 — Email Pre-Open Scanner (Weeks 9–11) — new module
+
+    Set up Gmail API or IMAP BODY.PEEK access in a test/sandbox account (never use real personal accounts for demoing)
+    Build the header/metadata feature extractor: SPF/DKIM/DMARC parsing, display-name-vs-address mismatch, reply-to mismatch
+    Build the attachment risk checker (extension/MIME mismatch, macro detection flags)
+    Build the browser extension (or simple custom inbox viewer) that shows a risk badge in the mail list before opening
+    Wire this into the same unified risk-scoring backend from Phases 1–3
+
+Deliverable: working demo where a test inbox shows red/yellow/green risk badges next to unopened emails
+Phase 5 — Company Verification Module (Week 12)
+
+    Build a lightweight lookup against a curated list of verified company domains (can start with a manually built CSV of well-known companies + their real domains)
+    Flag mismatches as "requires verification," not "confirmed scam" (avoid false accusations)
+
+Deliverable: company-domain cross-check integrated into risk rubric
+Phase 6 — Dashboard & Polish (Weeks 13–14)
+
+    Build the full analysis result UI: risk score gauge, flagged-signal table, "why flagged" explanation, recommendation
+    Build history/log view so a user can see past checks
+    Add charts (Chart.js/Recharts) for risk breakdown by category
+    Responsive design pass, error handling, loading states
+
+Deliverable: polished, demoable end-to-end product
+Phase 7 — Evaluation & Report Writing (Weeks 15–16)
+
+    Evaluate models: accuracy, precision, recall, F1 — precision matters most here (false positives erode trust; false negatives are dangerous, so track both carefully)
+    Run the three-demo test plan (obvious legit, obvious scam, subtle/hard scam) across all four channels including email
+    Write up: problem statement, related work, architecture, dataset strategy, evaluation results, limitations, ethics/privacy notes, future work
+    Prepare slides and a live-demo script
+
+Deliverable: final report + presentation-ready demo
+7. Updated Tech Stack
+Layer 	Tools
+Frontend 	React + Tailwind CSS
+Browser extension 	Chrome Extension (Manifest V3) for inbox badge injection
+Backend 	Python + FastAPI
+ML/NLP 	Scikit-learn, Pandas, NumPy, Hugging Face Transformers (BERT/DistilBERT)
+OCR 	Tesseract or EasyOCR
+Email access 	Gmail API (gmail.metadata scope) or IMAP (BODY.PEEK)
+Header analysis 	dkimpy, spf Python libraries or manual header parsing
+URL/domain checks 	python-whois, tldextract, VirusTotal API (optional, free tier)
+Database 	PostgreSQL (or Firebase for simplicity)
+Visualization 	Chart.js / Recharts
+8. Evaluation Metrics to Track
+
+    Precision on the "scam" class (minimize false alarms on legitimate offers)
+    Recall on the "scam" class (minimize missed scams — arguably the more important one to report on, given the real-world stakes)
+    F1-score overall
+    False positive rate specifically on legitimate emails from real domains (important for the email module, since flagging a real recruiter as a scam is a serious usability failure)
+    Model comparison table: Logistic Regression vs. Random Forest vs. XGBoost vs. DistilBERT
+
+9. Suggested Novelty Statement (Updated)
+
+    InternGuard is a multimodal, explainable AI system that detects job and internship fraud across text, screenshots, URLs, and — uniquely — incoming email, flagging risk at the inbox level before a message is ever opened. Unlike conventional phishing filters that act only after a user opens or clicks, InternGuard combines linguistic, financial, sender-authenticity, and domain-reputation signals into a single interpretable risk score with a plain-language explanation, helping students make safer decisions before they engage with a potentially fraudulent opportunity at all.
+
+10. What I'd Leave for Future Work (don't try to build now)
+
+    Real-time inbox monitoring across multiple mail providers (Outlook, Yahoo) beyond Gmail
+    A full mobile app version
+    Crowdsourced scam reporting (users flag new scams to retrain the model)
+    Browser extension that also scans LinkedIn/job-board listings directly on the page
