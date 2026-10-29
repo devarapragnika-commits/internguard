@@ -40,6 +40,24 @@ npm run dev
 
 Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). Paste a message and choose Analyze. The page shows one risk score when the API on port 8000 is running. If the API is running, the page also shows "API connected".
 
+## Baseline models
+
+The labeled file must already exist at `data/messages.csv`. This command does not create messages. From this folder:
+
+```powershell
+python -m backend.ml.train_baselines
+```
+
+It trains TF-IDF plus Logistic Regression, Random Forest, and XGBoost with seed 42, then writes:
+
+- `models/tfidf_logreg.joblib`
+- `models/random_forest.joblib`
+- `models/xgboost.joblib`
+- `models/comparison.csv`
+- `models/run_settings.json`
+
+`comparison.csv` includes accuracy, macro F1, scam-class precision, scam-class recall, and the dataset version. If `data/messages.csv` is missing, the command stops and does not write a table.
+
 ## Optional OpenRouter check
 
 The existing OpenRouter client is not the scam classifier. To smoke-test that client, copy `.env.example` to `.env`, put your key in `.env`, and run:
