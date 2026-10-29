@@ -5,3 +5,4 @@ uvicorn>=0.32.0
 python-whois>=0.9.5
 tldextract>=5.1.2
 certifi>=2024.0.0
+pytest>=8.0.0

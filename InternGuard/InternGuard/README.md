@@ -1,6 +1,6 @@
 # InternGuard
 
-InternGuard scores job, internship, and email messages for scam risk. This repository currently runs the API skeleton and a placeholder Analyze page. Scoring is not connected yet.
+InternGuard scores job, internship, and email messages for scam risk. The Analyze page scores pasted text and explains the reasons.
 
 ## Requirements
 
@@ -28,6 +28,8 @@ Open [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health). A running API
 
 API docs are at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 
+`POST /analyze/text` accepts JSON `{"text": "..."}` and returns a 0–100 score, a band, the reasons, and a recommendation. Empty text is rejected. Company, URL, sender, and attachment points stay at 0 until those modules award points.
+
 ## Frontend
 
 In a second terminal, from this folder:
@@ -38,7 +40,7 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). The Analyze page is a placeholder. The button does not score a message. If the API is running, the page shows "API connected".
+Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). Paste a message and click Analyze. The page shows the score, the reasons, and a recommendation when the API is running.
 
 ## Optional OpenRouter check
 
