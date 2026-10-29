@@ -1,1 +1,1 @@
-"""Analysis services. Later issues add scoring, URL checks, and email parsing here."""
+"""Analysis services. URL checks live in url_features. Later issues add scoring and email parsing here."""
