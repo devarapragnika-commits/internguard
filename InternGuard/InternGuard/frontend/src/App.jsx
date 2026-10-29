@@ -6,6 +6,8 @@ function App() {
   const [message, setMessage] = useState('')
   const [apiState, setApiState] = useState('checking')
   const [notice, setNotice] = useState('')
+  const [result, setResult] = useState(null)
+  const [pending, setPending] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -33,9 +35,33 @@ function App() {
     }
   }, [])
 
-  function onAnalyze(event) {
+  async function onAnalyze(event) {
     event.preventDefault()
-    setNotice('Scoring is not connected yet. This page only confirms the app is running.')
+    const text = message.trim()
+    setResult(null)
+    if (!text) {
+      setNotice('Paste a message before analyzing.')
+      return
+    }
+
+    setPending(true)
+    setNotice('')
+    try {
+      const response = await fetch(`${API_BASE}/analyze/text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        throw new Error(data.detail || 'Analysis failed')
+      }
+      setResult(data)
+    } catch {
+      setNotice('Could not reach the API. Start it on port 8000 and try again.')
+    } finally {
+      setPending(false)
+    }
   }
 
   const apiLabel =
@@ -51,7 +77,7 @@ function App() {
         <p className="text-sm font-medium tracking-wide text-slate-500">InternGuard</p>
         <h1 className="mt-1 text-3xl font-semibold text-slate-900">Analyze a message</h1>
         <p className="mt-2 text-slate-600">
-          Paste a job or internship message. Risk scoring is not connected yet.
+          Paste a job or internship message. Analyze checks whether it asks for a fee or deposit.
         </p>
       </header>
 
@@ -77,9 +103,10 @@ function App() {
           </p>
           <button
             type="submit"
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+            disabled={pending}
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
           >
-            Analyze
+            {pending ? 'Analyzing…' : 'Analyze'}
           </button>
         </div>
 
@@ -87,6 +114,17 @@ function App() {
           <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
             {notice}
           </p>
+        ) : null}
+
+        {result ? (
+          <section className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800">
+            <p className="font-medium text-slate-900">
+              Financial request risk: {result.financial_request_risk}/{result.financial_request_cap}
+            </p>
+            <p className="mt-2">
+              {result.flagged ? result.reason : 'No payment request found.'}
+            </p>
+          </section>
         ) : null}
       </form>
     </main>
