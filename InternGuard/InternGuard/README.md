@@ -67,3 +67,17 @@ From this folder:
 ```powershell
 python -m unittest test_url_features -v
 ```
+
+## Claimed company and domain
+
+`compare_claimed_company` in `backend/services/company_domain.py` compares the organization named in a message with the registrable domain of the link or sender. It does not use a verified-company list, and it does not check whether the TLD is suspicious.
+
+A lookalike such as a Microsoft internship leading to `secure-login.tk` is flagged with "claimed company does not match link domain." A link on `microsoft.com` is not flagged. Text with no company name is not flagged.
+
+Names shorter than 4 letters are ignored, including hp, ey, ge, ai, hr, it, and ibm. Generic words such as company, team, internship, and software are ignored too.
+
+From this folder:
+
+```powershell
+python -m unittest test_company_domain -v
+```
