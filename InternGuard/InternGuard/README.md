@@ -49,3 +49,21 @@ python test_llm.py
 ```
 
 Do not commit `.env`. `.env.example` contains names only, with a placeholder key.
+
+## URL features
+
+`extract_url_features` in `backend/services/url_features.py` checks a link on the server. The React page does not open it.
+
+HTTPS, the suspicious-TLD check, and the subdomain count are computed locally. Edit `backend/data/suspicious_tlds.txt` to change which top-level domains count as suspicious. One domain per line.
+
+These lookups can be unknown instead of failing the call:
+
+- `domain_age` when WHOIS times out, the host has no domain, or WHOIS has no creation date
+- `redirects` when the check times out, the URL is not http(s), or the host is not a public address
+- `virustotal` stays off unless `VIRUSTOTAL_API_KEY` is set. If that lookup times out or fails, its status is unknown
+
+From this folder:
+
+```powershell
+python -m unittest test_url_features -v
+```
