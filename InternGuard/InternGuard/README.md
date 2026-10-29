@@ -1,6 +1,6 @@
 # InternGuard
 
-InternGuard scores job, internship, and email messages for scam risk. This repository currently runs the API skeleton and a placeholder Analyze page. Scoring is not connected yet.
+InternGuard scores job, internship, and email messages for scam risk. The Analyze page sends one pasted message to `POST /analyze/text` and shows one 0–100 score, a band, the reasons, and a recommendation.
 
 ## Requirements
 
@@ -38,7 +38,7 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). The Analyze page is a placeholder. The button does not score a message. If the API is running, the page shows "API connected".
+Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). Paste a message and choose Analyze. The page shows one risk score when the API on port 8000 is running. If the API is running, the page also shows "API connected".
 
 ## Optional OpenRouter check
 
@@ -80,6 +80,25 @@ From this folder:
 
 ```powershell
 python -m unittest test_company_domain -v
+```
+
+## Combined score
+
+`score_message` in `backend/services/risk.py` is what `POST /analyze/text` returns. One call runs the linguistic features, the payment detector, the http(s) links in the message, the URL feature extractor, and the claimed-company check.
+
+Each slice is capped the way `Roadmap.txt` specifies, then divided by 110 and multiplied by 100:
+
+- Linguistic signals score 4 points each, at most 20, cap 25
+- A payment demand scores 25, cap 25
+- URL and domain signals score up to 20: company mismatch 6, suspicious TLD 5, domain younger than 90 days 4, VirusTotal 4, two or more subdomains 3, two or more redirects 3, and a non-HTTPS link 2
+- Sender authenticity (cap 15), attachment risk (cap 10), and company-list verification (cap 15) stay at 0
+
+Bands are 0–19 low, 20–49 medium, and 50–100 high. A message with no link leaves URL risk at 0. If a URL lookup fails, the text score is kept and the reasons include "URL check was unavailable." Unknown domain age, redirects, and VirusTotal are not treated as risky.
+
+From this folder:
+
+```powershell
+python -m unittest test_risk -v
 ```
 
 ## Payment requests

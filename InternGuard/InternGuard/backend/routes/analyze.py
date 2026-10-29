@@ -1,9 +1,9 @@
-"""Paste-text analysis. Currently returns the payment-request score."""
+"""Paste-text analysis. One call returns the combined text and URL score."""
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from backend.services.payment import detect_payment_request
+from backend.services.risk import score_message
 
 router = APIRouter()
 
@@ -17,4 +17,4 @@ def analyze_text(body: AnalyzeTextBody) -> dict:
     message = body.text.strip()
     if not message:
         raise HTTPException(status_code=400, detail="Paste a message before analyzing.")
-    return detect_payment_request(message)
+    return score_message(message)

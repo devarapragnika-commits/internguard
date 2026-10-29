@@ -2,6 +2,16 @@ import { useEffect, useState } from 'react'
 
 const API_BASE = 'http://127.0.0.1:8000'
 
+function bandLabel(band) {
+  if (band === 'high') {
+    return 'HIGH RISK'
+  }
+  if (band === 'medium') {
+    return 'MEDIUM RISK'
+  }
+  return 'LOW RISK'
+}
+
 function App() {
   const [message, setMessage] = useState('')
   const [apiState, setApiState] = useState('checking')
@@ -77,7 +87,8 @@ function App() {
         <p className="text-sm font-medium tracking-wide text-slate-500">InternGuard</p>
         <h1 className="mt-1 text-3xl font-semibold text-slate-900">Analyze a message</h1>
         <p className="mt-2 text-slate-600">
-          Paste a job or internship message. Analyze checks whether it asks for a fee or deposit.
+          Paste a job or internship message. Analyze returns one risk score for the wording and any
+          links.
         </p>
       </header>
 
@@ -119,11 +130,26 @@ function App() {
         {result ? (
           <section className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800">
             <p className="font-medium text-slate-900">
-              Financial request risk: {result.financial_request_risk}/{result.financial_request_cap}
+              RISK SCORE: {result.score}/100 — {bandLabel(result.band)}
             </p>
-            <p className="mt-2">
-              {result.flagged ? result.reason : 'No payment request found.'}
+            <p className="mt-2 text-slate-600">
+              Linguistic {result.slices.linguistic.points}/{result.slices.linguistic.cap}
+              {' · '}
+              Financial request {result.slices.financial_request.points}/
+              {result.slices.financial_request.cap}
+              {' · '}
+              URL/domain {result.slices.url_domain.points}/{result.slices.url_domain.cap}
             </p>
+            {result.reasons.length > 0 ? (
+              <ul className="mt-3 list-disc space-y-1 pl-5">
+                {result.reasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-3">No risk flags found.</p>
+            )}
+            <p className="mt-3">{result.recommendation}</p>
           </section>
         ) : null}
       </form>
