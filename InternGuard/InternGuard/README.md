@@ -81,3 +81,13 @@ From this folder:
 ```powershell
 python -m unittest test_company_domain -v
 ```
+
+## Payment requests
+
+`detect_payment_request` in `backend/services/payment.py` scores only the financial-request slice. A fee, deposit, gift card, crypto payment, or a demand to pay for an offer letter or laptop sets that score to 25. A message with no payment demand leaves it at 0. "No registration fee" does not count.
+
+From this folder:
+
+```powershell
+python -m unittest test_payment -v
+```
