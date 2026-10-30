@@ -7,9 +7,10 @@ The roadmap slices and caps are:
 - URL / domain risk: the signals below, cap 20
 - Sender authenticity: 0, cap 15 (email headers are out of scope)
 - Attachment risk: 0, cap 10 (email attachments are out of scope)
-- Company verification: 0, cap 15 (the company CSV is out of scope)
+- Company verification: 5 when a listed company's domain is not on its list, cap 15
 
-Claimed-company mismatch is part of the URL slice. It is not the company CSV.
+Claimed-company mismatch stays in the URL slice. When the verified list
+confirms the domain, that fuzzy mismatch is not added.
 
 The raw points are divided by 110, the sum of the caps, then multiplied by
 100. Bands are low (0–19), medium (20–49), and high (50–100).
@@ -27,6 +28,7 @@ from typing import TypedDict
 
 from backend.linguistic import LINGUISTIC_SIGNALS, extract_linguistic_features
 from backend.services.company_domain import compare_claimed_company
+from backend.services.company_list import check_verified_company
 from backend.services.payment import detect_payment_request
 from backend.services.url_features import extract_url_features
 
@@ -89,8 +91,13 @@ def score_message(text: str | None) -> RiskScore:
         flags.append(payment["flag"])
     reasons.extend(url_reasons)
     flags.extend(url_flags)
+    verified = check_verified_company(raw)
+    company_points = min(verified["points"], COMPANY_VERIFICATION_CAP)
+    if verified["reason"]:
+        reasons.append(verified["reason"])
+        flags.append(verified["flag"])
 
-    raw_points = linguistic_points + financial_points + url_points
+    raw_points = linguistic_points + financial_points + url_points + company_points
     score = _normalize(raw_points)
     return {
         "score": score,
@@ -104,7 +111,7 @@ def score_message(text: str | None) -> RiskScore:
             "url_domain": {"points": url_points, "cap": URL_CAP},
             "sender_authenticity": {"points": 0, "cap": SENDER_CAP},
             "attachment": {"points": 0, "cap": ATTACHMENT_CAP},
-            "company_verification": {"points": 0, "cap": COMPANY_VERIFICATION_CAP},
+            "company_verification": {"points": company_points, "cap": COMPANY_VERIFICATION_CAP},
         },
     }
 
@@ -166,7 +173,8 @@ def _one_url(text: str, url: str) -> tuple[int, list[str], list[str], bool]:
         failed = True
 
     found: list[tuple[str, str]] = []
-    if company and company["flagged"]:
+    verified = check_verified_company(text, url=url)
+    if company and company["flagged"] and not verified["domain_allowed"]:
         found.append((company["flag"], company["reason"]))
     if features is None:
         points = min(_url_points(found), URL_CAP)

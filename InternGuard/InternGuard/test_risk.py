@@ -69,7 +69,10 @@ class RiskScoreTests(unittest.TestCase):
         self.assertEqual(result["slices"]["financial_request"]["points"], 25)
         self.assertEqual(result["slices"]["linguistic"]["points"], 4)
         self.assertEqual(result["slices"]["url_domain"]["points"], 13)
-        self.assertEqual(result["score"], _normalized(4 + 25 + 13))
+        self.assertEqual(result["slices"]["company_verification"]["points"], 5)
+        self.assertIn("requires verification", reasons)
+        self.assertNotIn("scam", reasons.lower())
+        self.assertEqual(result["score"], _normalized(4 + 25 + 13 + 5))
         self.assertGreaterEqual(result["score"], 0)
         self.assertLessEqual(result["score"], 100)
         self.assertEqual(
@@ -121,14 +124,15 @@ class RiskScoreTests(unittest.TestCase):
         self.assertIn("Link redirects more than once.", result["reasons"])
         self.assertNotIn("URL check was unavailable.", result["reasons"])
 
-    def test_email_and_company_list_slices_stay_zero(self):
+    def test_email_slices_stay_zero_and_company_list_can_score(self):
         result = score_message(FEE_AND_LOOKALIKE)
         self.assertEqual(result["slices"]["sender_authenticity"]["points"], 0)
         self.assertEqual(result["slices"]["attachment"]["points"], 0)
-        self.assertEqual(result["slices"]["company_verification"]["points"], 0)
+        self.assertEqual(result["slices"]["company_verification"]["points"], 5)
         self.assertEqual(result["slices"]["sender_authenticity"]["cap"], 15)
         self.assertEqual(result["slices"]["attachment"]["cap"], 10)
         self.assertEqual(result["slices"]["company_verification"]["cap"], 15)
+        self.assertIn("Microsoft requires verification.", result["reasons"])
 
     def test_empty_text_does_not_crash(self):
         for text in ("", "   ", None, "hello", 123):

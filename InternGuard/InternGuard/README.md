@@ -88,7 +88,7 @@ python -m unittest test_url_features -v
 
 ## Claimed company and domain
 
-`compare_claimed_company` in `backend/services/company_domain.py` compares the organization named in a message with the registrable domain of the link or sender. It does not use a verified-company list, and it does not check whether the TLD is suspicious.
+`compare_claimed_company` in `backend/services/company_domain.py` compares the organization named in a message with the registrable domain of the link or sender. It does not read the verified-company list, and it does not check whether the TLD is suspicious. Abbreviations such as TCS are handled by the list below.
 
 A lookalike such as a Microsoft internship leading to `secure-login.tk` is flagged with "claimed company does not match link domain." A link on `microsoft.com` is not flagged. Text with no company name is not flagged.
 
@@ -100,16 +100,36 @@ From this folder:
 python -m unittest test_company_domain -v
 ```
 
+## Verified company domains
+
+`check_verified_company` in `backend/services/company_list.py` reads `backend/data/verified_companies.csv`. Edit that file to add an employer. There is no company API.
+
+Columns are `company`, `aliases`, and `domains`. Put extra aliases or domains in the same cell, separated by semicolons. A domain is the registrable domain, such as `tcs.com`, not a full link.
+
+When the message names a company on the list:
+
+- A link or sender domain on that company's list adds no company-verification points. The fuzzy mismatch is not added for that domain, so Tata Consultancy Services can use `tcs.com`.
+- Any other domain adds 5 points, capped at 15. The reason says the company requires verification. It does not call the offer a scam.
+- A company that is not in the CSV adds no list points. The fuzzy check still runs.
+- A listed company with no link and no sender is not a list failure.
+
+From this folder:
+
+```powershell
+python -m unittest test_company_list -v
+```
+
 ## Combined score
 
-`score_message` in `backend/services/risk.py` is what `POST /analyze/text` returns. One call runs the linguistic features, the payment detector, the http(s) links in the message, the URL feature extractor, and the claimed-company check.
+`score_message` in `backend/services/risk.py` is what `POST /analyze/text` returns. One call runs the linguistic features, the payment detector, the http(s) links in the message, the URL feature extractor, the claimed-company check, and the verified-company list.
 
 Each slice is capped the way `Roadmap.txt` specifies, then divided by 110 and multiplied by 100:
 
 - Linguistic signals score 4 points each, at most 20, cap 25
 - A payment demand scores 25, cap 25
 - URL and domain signals score up to 20: company mismatch 6, suspicious TLD 5, domain younger than 90 days 4, VirusTotal 4, two or more subdomains 3, two or more redirects 3, and a non-HTTPS link 2
-- Sender authenticity (cap 15), attachment risk (cap 10), and company-list verification (cap 15) stay at 0
+- A listed company whose link or sender domain is not on its verified list scores 5, cap 15
+- Sender authenticity (cap 15) and attachment risk (cap 10) stay at 0
 
 Bands are 0–19 low, 20–49 medium, and 50–100 high. A message with no link leaves URL risk at 0. If a URL lookup fails, the text score is kept and the reasons include "URL check was unavailable." Unknown domain age, redirects, and VirusTotal are not treated as risky.
 
