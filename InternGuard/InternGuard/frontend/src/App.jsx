@@ -21,6 +21,7 @@ function App() {
   const [imageFile, setImageFile] = useState(null)
   const [imageUrl, setImageUrl] = useState('')
   const [fromImage, setFromImage] = useState(false)
+  const [emailSource, setEmailSource] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -121,6 +122,43 @@ function App() {
     }
   }
 
+  async function onAnalyzeEmail(event) {
+    event.preventDefault()
+    const raw = emailSource.trim()
+    setResult(null)
+    if (!raw) {
+      setNotice('Paste an email before analyzing.')
+      return
+    }
+
+    setPending(true)
+    setNotice('')
+    setFromImage(false)
+    try {
+      const response = await fetch(`${API_BASE}/analyze/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        setNotice(
+          response.status === 404
+            ? 'Restart the API so the email route is loaded, then try again.'
+            : typeof data.detail === 'string'
+              ? data.detail
+              : 'Analysis failed',
+        )
+        return
+      }
+      setResult(data)
+    } catch {
+      setNotice('Could not reach the API. Start it on port 8000 and try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+
   const apiLabel =
     apiState === 'checking'
       ? 'Checking API…'
@@ -134,8 +172,7 @@ function App() {
         <p className="text-sm font-medium tracking-wide text-slate-500">InternGuard</p>
         <h1 className="mt-1 text-3xl font-semibold text-slate-900">Analyze a message</h1>
         <p className="mt-2 text-slate-600">
-          Paste a message or upload a screenshot. Both return one risk score for the wording and any
-          links.
+          Paste a message, upload a screenshot, or paste a raw email. Each returns one risk score.
         </p>
       </header>
 
@@ -189,67 +226,93 @@ function App() {
             {pending ? 'Analyzing…' : 'Analyze screenshot'}
           </button>
         </div>
-
-        {notice ? (
-          <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
-            {notice}
-          </p>
-        ) : null}
-
-        {fromImage && imageUrl ? (
-          <div className="relative w-fit max-w-full">
-            <img
-              src={imageUrl}
-              alt="Screenshot being analyzed"
-              className="max-w-full rounded-md border border-slate-300"
-            />
-            {result?.image_width && result.highlights
-              ? result.highlights.map((box) => (
-                  <span
-                    key={`${box.x}-${box.y}-${box.width}-${box.height}`}
-                    className="pointer-events-none absolute border-2 border-amber-700 bg-amber-400/30"
-                    style={{
-                      left: `${(box.x / result.image_width) * 100}%`,
-                      top: `${(box.y / result.image_height) * 100}%`,
-                      width: `${(box.width / result.image_width) * 100}%`,
-                      height: `${(box.height / result.image_height) * 100}%`,
-                    }}
-                  />
-                ))
-              : null}
-          </div>
-        ) : null}
-
-        {result ? (
-          <section className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800">
-            <p className="font-medium text-slate-900">
-              RISK SCORE: {result.score}/100 — {bandLabel(result.band)}
-            </p>
-            <p className="mt-2 text-slate-600">
-              Linguistic {result.slices.linguistic.points}/{result.slices.linguistic.cap}
-              {' · '}
-              Financial request {result.slices.financial_request.points}/
-              {result.slices.financial_request.cap}
-              {' · '}
-              URL/domain {result.slices.url_domain.points}/{result.slices.url_domain.cap}
-              {' · '}
-              Company verification {result.slices.company_verification.points}/
-              {result.slices.company_verification.cap}
-            </p>
-            {result.reasons.length > 0 ? (
-              <ul className="mt-3 list-disc space-y-1 pl-5">
-                {result.reasons.map((reason) => (
-                  <li key={reason}>{reason}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-3">No risk flags found.</p>
-            )}
-            {fromImage && result.text ? <p className="mt-3 text-slate-600">Read from image: {result.text}</p> : null}
-            <p className="mt-3">{result.recommendation}</p>
-          </section>
-        ) : null}
       </form>
+
+      <form onSubmit={onAnalyzeEmail} className="mt-6 flex flex-col gap-4">
+        <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
+          Raw email
+          <textarea
+            value={emailSource}
+            onChange={(event) => setEmailSource(event.target.value)}
+            rows={8}
+            placeholder="Paste a full email, including headers"
+            className="rounded-md border border-slate-300 bg-white px-3 py-2 text-base font-normal text-slate-900 outline-none focus:border-slate-500"
+          />
+        </label>
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            disabled={pending}
+            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+          >
+            {pending ? 'Analyzing…' : 'Analyze email'}
+          </button>
+        </div>
+      </form>
+
+      {notice ? (
+        <p className="mt-6 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          {notice}
+        </p>
+      ) : null}
+
+      {fromImage && imageUrl ? (
+        <div className="relative mt-6 w-fit max-w-full">
+          <img
+            src={imageUrl}
+            alt="Screenshot being analyzed"
+            className="max-w-full rounded-md border border-slate-300"
+          />
+          {result?.image_width && result.highlights
+            ? result.highlights.map((box) => (
+                <span
+                  key={`${box.x}-${box.y}-${box.width}-${box.height}`}
+                  className="pointer-events-none absolute border-2 border-amber-700 bg-amber-400/30"
+                  style={{
+                    left: `${(box.x / result.image_width) * 100}%`,
+                    top: `${(box.y / result.image_height) * 100}%`,
+                    width: `${(box.width / result.image_width) * 100}%`,
+                    height: `${(box.height / result.image_height) * 100}%`,
+                  }}
+                />
+              ))
+            : null}
+        </div>
+      ) : null}
+
+      {result ? (
+        <section className="mt-6 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800">
+          <p className="font-medium text-slate-900">
+            RISK SCORE: {result.score}/100 — {bandLabel(result.band)}
+          </p>
+          <p className="mt-2 text-slate-600">
+            Linguistic {result.slices.linguistic.points}/{result.slices.linguistic.cap}
+            {' · '}
+            Financial request {result.slices.financial_request.points}/
+            {result.slices.financial_request.cap}
+            {' · '}
+            URL/domain {result.slices.url_domain.points}/{result.slices.url_domain.cap}
+            {' · '}
+            Sender {result.slices.sender_authenticity.points}/{result.slices.sender_authenticity.cap}
+            {' · '}
+            Attachment {result.slices.attachment.points}/{result.slices.attachment.cap}
+            {' · '}
+            Company verification {result.slices.company_verification.points}/
+            {result.slices.company_verification.cap}
+          </p>
+          {result.reasons.length > 0 ? (
+            <ul className="mt-3 list-disc space-y-1 pl-5">
+              {result.reasons.map((reason) => (
+                <li key={reason}>{reason}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-3">No risk flags found.</p>
+          )}
+          {fromImage && result.text ? <p className="mt-3 text-slate-600">Read from image: {result.text}</p> : null}
+          <p className="mt-3">{result.recommendation}</p>
+        </section>
+      ) : null}
     </main>
   )
 }
