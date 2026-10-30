@@ -1,6 +1,6 @@
 # InternGuard
 
-InternGuard scores job, internship, and email messages for scam risk. The Analyze page sends one pasted message to `POST /analyze/text` and shows one 0–100 score, a band, the reasons, and a recommendation.
+InternGuard scores job, internship, and email messages for scam risk. The Analyze page accepts pasted text and a screenshot. Both calls return one 0–100 score, a band, the reasons, and a recommendation.
 
 ## Requirements
 
@@ -38,7 +38,9 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). Paste a message and choose Analyze. The page shows one risk score when the API on port 8000 is running. If the API is running, the page also shows "API connected".
+Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). Paste a message and choose Analyze, or upload a screenshot and choose Analyze screenshot. The page shows one risk score when the API on port 8000 is running. If the API is running, the page also shows "API connected".
+
+Screenshot reading needs the Tesseract program, not only the Python package. On Windows, install [Tesseract](https://github.com/UB-Mannheim/tesseract/wiki) and restart the API. The installer path `C:\Program Files\Tesseract-OCR\tesseract.exe` is picked up automatically. Set `TESSERACT_CMD` if it lives somewhere else.
 
 ## Baseline models
 
@@ -137,6 +139,18 @@ From this folder:
 
 ```powershell
 python -m unittest test_risk -v
+```
+
+## Screenshots
+
+`POST /analyze/image` accepts one image. Tesseract reads it on the server. The text is cleaned (a word split across a line, a digit between letters, spaced-out letters, and spaces inside a link) and then passed to `score_message`. The response is the same score, band, reasons, and recommendation, plus highlight boxes for the phrases that fired.
+
+An empty file, a non-image, or a failed read returns a clear error and no score. Tests do not call Tesseract or a paid API.
+
+From this folder:
+
+```powershell
+python -m unittest test_ocr -v
 ```
 
 ## Payment requests
