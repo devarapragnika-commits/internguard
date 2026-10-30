@@ -104,6 +104,18 @@ From this folder:
 python -m unittest test_company_domain -v
 ```
 
+## Disguised spelling
+
+`clean_for_matching` in `backend/services/text_cleanup.py` runs before the linguistic, payment, and company checks. It applies Unicode NFKC, strips invisible characters, maps common Cyrillic and Greek lookalikes to Latin letters, swaps 0/1/3/5 only between letters, and joins spaced-out letters. The original message is what the UI shows. Screenshot OCR uses the same matching cleanup after its line-break repairs.
+
+A host that only matches a company name after that mapping, including a decoded `xn--` domain, adds 6 URL points with the reason "Link domain uses lookalike characters." Cap stays 20. `https://careers.microsoft.com` is not flagged.
+
+From this folder:
+
+```powershell
+python -m unittest test_text_cleanup -v
+```
+
 ## Verified company domains
 
 `check_verified_company` in `backend/services/company_list.py` reads `backend/data/verified_companies.csv`. Edit that file to add an employer. There is no company API.
@@ -131,7 +143,7 @@ Each slice is capped the way `Roadmap.txt` specifies, then divided by 110 and mu
 
 - Linguistic signals score 4 points each, at most 20, cap 25
 - A payment demand scores 25, cap 25
-- URL and domain signals score up to 20: company mismatch 6, suspicious TLD 5, domain younger than 90 days 4, VirusTotal 4, two or more subdomains 3, two or more redirects 3, and a non-HTTPS link 2
+- URL and domain signals score up to 20: company mismatch 6, lookalike or xn-- domain 6, suspicious TLD 5, domain younger than 90 days 4, VirusTotal 4, two or more subdomains 3, two or more redirects 3, and a non-HTTPS link 2
 - A listed company whose link or sender domain is not on its verified list scores 5, cap 15
 - Sender authenticity scores up to 15: SPF fail 5, DKIM fail 5, DMARC fail 5, a company display name on a free mailbox 6, and a Reply-To mismatch 4
 - Attachment risk scores up to 10: a double extension such as pdf.exe 6, a dangerous extension 5, a macro-enabled Office file 4, and an extension that does not match the declared type 4

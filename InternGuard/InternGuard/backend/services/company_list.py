@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import TypedDict
 
 from backend.services.company_domain import compare_claimed_company, registrable_domain
+from backend.services.text_cleanup import clean_for_matching
 
 VERIFICATION_POINTS = 5
 VERIFICATION_CAP = 15
@@ -138,7 +139,7 @@ def _wording(text: str | None) -> str:
     if not isinstance(text, str):
         text = str(text)
     without_links = _URL.sub(" ", text)
-    return _EMAIL.sub(" ", without_links)
+    return clean_for_matching(_EMAIL.sub(" ", without_links))
 
 
 def _domains(text: str | None, url: str | None, sender: str | None) -> list[str]:

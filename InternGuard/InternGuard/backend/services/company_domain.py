@@ -39,6 +39,8 @@ from urllib.parse import urlparse
 
 import tldextract
 
+from backend.services.text_cleanup import clean_for_matching
+
 _EXTRACTOR = tldextract.TLDExtract(suffix_list_urls=())
 _MATCH_RATIO = 0.92
 _MIN_NAME_LENGTH = 4
@@ -163,7 +165,7 @@ def compare_claimed_company(
     ``flagged`` is false when the names match, when the text names no company,
     or when there is no domain to compare. No company name does not raise.
     """
-    raw = _as_text(text)
+    raw = clean_for_matching(text)
     company = _extract_company(raw)
     domain, source = _comparison_domain(raw, url, sender)
     if not company or not domain:

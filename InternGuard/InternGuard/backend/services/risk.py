@@ -29,8 +29,10 @@ from typing import TypedDict
 from backend.linguistic import LINGUISTIC_SIGNALS, extract_linguistic_features
 from backend.services.company_domain import compare_claimed_company
 from backend.services.company_list import check_verified_company
+from backend.services.lookalike_domain import LOOKALIKE_POINTS, detect_lookalike_domain
 from backend.services.mail import SliceFlags
 from backend.services.payment import detect_payment_request
+from backend.services.text_cleanup import clean_for_matching
 from backend.services.url_features import extract_url_features
 
 TOTAL_CAP = 110
@@ -93,10 +95,11 @@ def score_message(
     passes those slices in.
     """
     raw = _as_text(text)
-    linguistic_points, linguistic_reasons, linguistic_flags = _linguistic(raw)
-    payment = detect_payment_request(raw)
+    matching = clean_for_matching(raw)
+    linguistic_points, linguistic_reasons, linguistic_flags = _linguistic(matching)
+    payment = detect_payment_request(matching)
     financial_points = payment["financial_request_risk"]
-    url_points, url_reasons, url_flags = _url_risk(raw)
+    url_points, url_reasons, url_flags = _url_risk(raw, matching)
     sender_slice = sender or _empty_slice()
     attachment_slice = attachments or _empty_slice()
     sender_points = min(sender_slice["points"], SENDER_CAP)
@@ -109,7 +112,7 @@ def score_message(
         flags.append(payment["flag"])
     reasons.extend(url_reasons)
     flags.extend(url_flags)
-    verified = check_verified_company(raw, sender=sender_address)
+    verified = check_verified_company(matching, sender=sender_address)
     company_points = min(verified["points"], COMPANY_VERIFICATION_CAP)
     if verified["reason"]:
         reasons.append(verified["reason"])
@@ -168,14 +171,15 @@ def _linguistic(text: str) -> tuple[int, list[str], list[str]]:
     return min(points, LINGUISTIC_MAX), reasons, flags
 
 
-def _url_risk(text: str) -> tuple[int, list[str], list[str]]:
+def _url_risk(text: str, matching: str | None = None) -> tuple[int, list[str], list[str]]:
     urls = _extract_urls(text)
+    wording = matching if matching is not None else text
     best_points = 0
     best_reasons: list[str] = []
     best_flags: list[str] = []
     unavailable = False
     for url in urls:
-        points, reasons, flags, failed = _one_url(text, url)
+        points, reasons, flags, failed = _one_url(wording, url)
         if failed:
             unavailable = True
         if points > best_points:
@@ -203,7 +207,10 @@ def _one_url(text: str, url: str) -> tuple[int, list[str], list[str], bool]:
 
     found: list[tuple[str, str]] = []
     verified = check_verified_company(text, url=url)
-    if company and company["flagged"] and not verified["domain_allowed"]:
+    lookalike = detect_lookalike_domain(text, url=url)
+    if lookalike["flagged"]:
+        found.append((lookalike["flag"], lookalike["reason"]))
+    elif company and company["flagged"] and not verified["domain_allowed"]:
         found.append((company["flag"], company["reason"]))
     if features is None:
         points = min(_url_points(found), URL_CAP)
@@ -253,6 +260,7 @@ def _one_url(text: str, url: str) -> tuple[int, list[str], list[str], bool]:
 def _url_points(found: list[tuple[str, str]]) -> int:
     weights = {
         "claimed_company_mismatch": 6,
+        "lookalike_domain": LOOKALIKE_POINTS,
         "suspicious_tld": 5,
         "new_domain": 4,
         "virustotal": 4,

@@ -23,12 +23,11 @@ from io import BytesIO
 from typing import TypedDict
 
 from backend.services.risk import score_message
+from backend.services.text_cleanup import clean_for_matching, swap_digits_between_letters
 
 MAX_IMAGE_BYTES = 5_000_000
 
-_CONFUSABLES = {"0": "o", "1": "l", "5": "s", "|": "l"}
 _HYPHEN_BREAK = re.compile(r"([A-Za-z])-\s*[\r\n]+\s*([A-Za-z])")
-_SPACED_LETTERS = re.compile(r"(?:[A-Za-z0-9|]\s+){3,}[A-Za-z0-9|]\b")
 _URL_START = re.compile(r"https?\s*:\s*/\s*/", re.IGNORECASE)
 _QUOTED = re.compile(r'"([^"]+)"')
 _ASKS_FOR = re.compile(r"\bAsks for (?:a|an) (.+)\.$")
@@ -97,11 +96,9 @@ def clean_ocr_text(text: str | None) -> str:
     raw = raw.replace("\u2019", "'").replace("\u2018", "'")
     raw = _HYPHEN_BREAK.sub(r"\1\2", raw)
     raw = raw.replace("\r", "\n").replace("\n", " ")
-    raw = _swap_between_letters(raw)
-    raw = _SPACED_LETTERS.sub(_join_spaced_letters, raw)
-    raw = re.sub(r"\s+", " ", raw).strip()
+    raw = swap_digits_between_letters(raw, extra={"|": "l"})
     raw = _repair_urls(raw)
-    return _swap_between_letters(raw).strip()
+    return clean_for_matching(raw).strip()
 
 
 def read_image(data: bytes) -> OcrPage:
@@ -189,26 +186,6 @@ def _phrases(result: dict, cleaned: str) -> list[str]:
     return unique
 
 
-def _swap_between_letters(text: str) -> str:
-    chars = list(text)
-    for index, char in enumerate(chars):
-        replacement = _CONFUSABLES.get(char)
-        if replacement is None:
-            continue
-        previous = chars[index - 1] if index else ""
-        nxt = chars[index + 1] if index + 1 < len(chars) else ""
-        if previous.isalpha() and nxt.isalpha():
-            chars[index] = replacement
-    return "".join(chars)
-
-
-def _join_spaced_letters(match: re.Match[str]) -> str:
-    pieces = match.group(0).split()
-    if not pieces or any(len(piece) != 1 for piece in pieces):
-        return match.group(0)
-    return "".join(_CONFUSABLES.get(piece, piece) for piece in pieces)
-
-
 def _repair_urls(text: str) -> str:
     pieces: list[str] = []
     cursor = 0
@@ -242,7 +219,7 @@ def _repair_urls(text: str) -> str:
 
 
 def _match_token(text: str) -> str:
-    swapped = _swap_between_letters(text.lower())
+    swapped = swap_digits_between_letters(text.lower(), extra={"|": "l"})
     return re.sub(r"[^a-z0-9:/._~?#&=%+-]+", "", swapped)
 
 

@@ -8,6 +8,8 @@ from __future__ import annotations
 import re
 from typing import TypedDict
 
+from backend.services.text_cleanup import clean_for_matching
+
 LINGUISTIC_SIGNALS = (
     "urgency",
     "financial_pressure",
@@ -159,6 +161,7 @@ def _as_text(text: str | None) -> str:
 
 
 def _prepare(text: str) -> str:
+    text = clean_for_matching(text)
     text = text.replace("\u2019", "'").replace("\u2018", "'")
     text = text.lower()
     text = re.sub(r"(?<=\d),(?=\d)", "", text)
