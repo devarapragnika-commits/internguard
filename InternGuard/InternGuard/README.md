@@ -62,6 +62,19 @@ It trains TF-IDF plus Logistic Regression, Random Forest, and XGBoost with seed 
 
 `comparison.csv` includes accuracy, macro F1, scam-class precision, scam-class recall, and the dataset version. If `data/messages.csv` is missing, the command stops and does not write a table.
 
+## Evaluation and demo report
+
+The live product is the rubric, not a model probability. From this folder:
+
+```powershell
+python -m backend.ml.evaluate_scorer
+python -m backend.ml.run_demo
+```
+
+`evaluate_scorer` writes `models/evaluation.csv` for the three baselines and the rubric, including scam precision, scam recall, and the false-positive rate on legitimate rows. `run_demo` scores the three messages in `demos/` on text, a link inside the message, a generated screenshot, and a `.eml` fixture. Screenshot scoring is skipped if Tesseract is not installed.
+
+The writeup is `docs/demo-report.md`. The comparison table in that file must match `models/evaluation.csv` after a fresh run. Expected bands are in `demos/expected.json`.
+
 ## Optional OpenRouter check
 
 The existing OpenRouter client is not the scam classifier. To smoke-test that client, copy `.env.example` to `.env`, put your key in `.env`, and run:

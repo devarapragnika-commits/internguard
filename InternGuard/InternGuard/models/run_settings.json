@@ -2,8 +2,8 @@
   "seed": 42,
   "test_size": 0.2,
   "split": "stratified train/test, random_state 42, test_size 0.2",
-  "dataset_path": "C:\\Users\\DEVARA PRAGNIKA\\Downloads\\InternGuard\\InternGuard\\data\\messages.csv",
-  "dataset_version": "sha256:a61f0e3fb5a5:rows:323",
+  "dataset_path": "C:\\Users\\DEVARA PRAGNIKA\\AppData\\Local\\Temp\\internguard-push\\InternGuard\\InternGuard\\data\\messages.csv",
+  "dataset_version": "sha256:e08a9a505a4b:rows:348",
   "tfidf": {
     "ngram_range": [
       1,

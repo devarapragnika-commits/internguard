@@ -1,0 +1,22 @@
+From: "Campus Placement" <offers@gmail.com>
+To: student@college.edu
+Reply-To: cash@yahoo.com
+Subject: You are selected. Pay today
+Authentication-Results: mx.example;
+    spf=fail smtp.mailfrom=gmail.com;
+    dkim=fail header.i=@gmail.com;
+    dmarc=fail header.from=gmail.com
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="BOUND"
+
+--BOUND
+Content-Type: text/plain; charset="utf-8"
+
+Congratulations, you are selected. Pay the registration fee today only. Guaranteed internship. Do not share this. Send your bank account number. Act now. Apply at http://microsoft.secure-login.tk/offer
+
+--BOUND
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="offer.pdf.exe"
+
+not-executed
+--BOUND--
