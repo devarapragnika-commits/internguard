@@ -149,6 +149,13 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
+# App local data
+data/phishing-website-screenshots/
+
+# Frontend
+node_modules/
+.vite/
+
 # Environments
 .env
 .envrc
