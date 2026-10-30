@@ -1,0 +1,5 @@
+method,accuracy,f1_macro,scam_precision,scam_recall,legitimate_false_positive_rate,dataset_version,seed
+tfidf_logreg,0.9857,0.9491,1.0,1.0,0.0,sha256:e08a9a505a4b:rows:348,42
+random_forest,0.9571,0.9044,1.0,0.875,0.0,sha256:e08a9a505a4b:rows:348,42
+xgboost,0.9429,0.7978,0.9333,0.875,0.0,sha256:e08a9a505a4b:rows:348,42
+rubric,0.7286,0.3516,0.0,0.0,0.0,sha256:e08a9a505a4b:rows:348,42
