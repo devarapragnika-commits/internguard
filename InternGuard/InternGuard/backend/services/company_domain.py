@@ -23,8 +23,8 @@ suffixes (inc, ltd, llc, limited, pvt, corp) are removed first. A score of at
 least 0.92, or an equal normalized string, is a match and is not flagged.
 A lower score is a mismatch.
 
-Abbreviations are not expanded. "Tata Consultancy Services" does not match
-tcs.com without the Phase 5 company list.
+Abbreviations are not expanded here. "Tata Consultancy Services" does not
+match tcs.com in this module. The verified company list does that check.
 
 The link is the url argument when one is passed, otherwise the first http(s)
 URL in the text. When there is no URL, the sender address is used.
@@ -146,6 +146,11 @@ class CompanyDomainResult(TypedDict):
     claimed_company: str
     domain: str
     source: str
+
+
+def registrable_domain(value: str | None) -> str:
+    """Return the registrable domain, such as careers.tcs.com to tcs.com."""
+    return _registrable_domain(_as_text(value).strip())
 
 
 def compare_claimed_company(

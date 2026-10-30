@@ -139,6 +139,9 @@ function App() {
               {result.slices.financial_request.cap}
               {' · '}
               URL/domain {result.slices.url_domain.points}/{result.slices.url_domain.cap}
+              {' · '}
+              Company verification {result.slices.company_verification.points}/
+              {result.slices.company_verification.cap}
             </p>
             {result.reasons.length > 0 ? (
               <ul className="mt-3 list-disc space-y-1 pl-5">
