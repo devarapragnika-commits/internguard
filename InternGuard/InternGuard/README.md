@@ -1,6 +1,6 @@
 # InternGuard
 
-InternGuard scores job, internship, and email messages for scam risk. The Analyze page sends one pasted message to `POST /analyze/text` and shows one 0–100 score, a band, the reasons, and a recommendation.
+InternGuard scores job, internship, and email messages for scam risk. The Analyze page accepts pasted text, a screenshot, and a raw email. Each call returns one 0–100 score, a band, the reasons, and a recommendation.
 
 ## Requirements
 
@@ -38,9 +38,11 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). Paste a message and choose Analyze. The page shows a 0–100 gauge, points by slice, the reasons, and a recommendation when the API on port 8000 is running. If the API is running, the page also shows "API connected".
+Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). Paste a message and choose Analyze, upload a screenshot, or paste a raw email. The page shows a 0–100 gauge, points by slice, the reasons, and a recommendation when the API on port 8000 is running. If the API is running, the page also shows "API connected".
 
-History is a second tab on the same page (`#history`). Each successful check is saved in this browser only: score, band, reasons, recommendation, slices, and a short excerpt. The full message, screenshots, and raw emails are not stored. Refreshing the page keeps the list. An API failure shows an error and does not wipe history. An empty list shows a first-use message. Screenshot and email results can use the same history later by saving with a different `channel`.
+History is a second tab on the same page (`#history`). Each successful text, screenshot, or email check is saved in this browser only: score, band, reasons, recommendation, slices, and a short excerpt. The full message, screenshots, and raw emails are not stored. Refreshing the page keeps the list. An API failure shows an error and does not wipe history. An empty list shows a first-use message.
+
+Screenshot reading needs the Tesseract program, not only the Python package. On Windows, install [Tesseract](https://github.com/UB-Mannheim/tesseract/wiki) and restart the API. The installer path `C:\Program Files\Tesseract-OCR\tesseract.exe` is picked up automatically. Set `TESSERACT_CMD` if it lives somewhere else.
 
 ## Baseline models
 
@@ -131,7 +133,8 @@ Each slice is capped the way `Roadmap.txt` specifies, then divided by 110 and mu
 - A payment demand scores 25, cap 25
 - URL and domain signals score up to 20: company mismatch 6, suspicious TLD 5, domain younger than 90 days 4, VirusTotal 4, two or more subdomains 3, two or more redirects 3, and a non-HTTPS link 2
 - A listed company whose link or sender domain is not on its verified list scores 5, cap 15
-- Sender authenticity (cap 15) and attachment risk (cap 10) stay at 0
+- Sender authenticity scores up to 15: SPF fail 5, DKIM fail 5, DMARC fail 5, a company display name on a free mailbox 6, and a Reply-To mismatch 4
+- Attachment risk scores up to 10: a double extension such as pdf.exe 6, a dangerous extension 5, a macro-enabled Office file 4, and an extension that does not match the declared type 4
 
 Bands are 0–19 low, 20–49 medium, and 50–100 high. A message with no link leaves URL risk at 0. If a URL lookup fails, the text score is kept and the reasons include "URL check was unavailable." Unknown domain age, redirects, and VirusTotal are not treated as risky.
 
@@ -139,6 +142,30 @@ From this folder:
 
 ```powershell
 python -m unittest test_risk -v
+```
+
+## Email headers and attachments
+
+`POST /analyze/email` accepts a raw RFC 822 message, or headers plus a snippet and attachment filenames. HTML is not rendered, remote images are not loaded, and attachments are not opened. The subject and snippet go through the same linguistic and payment checks. Links in the raw source go through the URL checks. Sender and attachment points are added in `score_message`, still divided by 110.
+
+If the headers cannot be read, the text score is kept and the reasons include "Sender check was unavailable." Tests use fixture headers and filenames. They do not open a mailbox.
+
+From this folder:
+
+```powershell
+python -m unittest test_mail -v
+```
+
+## Screenshots
+
+`POST /analyze/image` accepts one image. Tesseract reads it on the server. The text is cleaned (a word split across a line, a digit between letters, spaced-out letters, and spaces inside a link) and then passed to `score_message`. The response is the same score, band, reasons, and recommendation, plus highlight boxes for the phrases that fired.
+
+An empty file, a non-image, or a failed read returns a clear error and no score. Tests do not call Tesseract or a paid API.
+
+From this folder:
+
+```powershell
+python -m unittest test_ocr -v
 ```
 
 ## Payment requests

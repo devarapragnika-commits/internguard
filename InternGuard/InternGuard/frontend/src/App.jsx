@@ -20,6 +20,10 @@ function App() {
   const [result, setResult] = useState(null)
   const [pending, setPending] = useState(false)
   const [history, setHistory] = useState(loadHistory)
+  const [imageFile, setImageFile] = useState(null)
+  const [imageUrl, setImageUrl] = useState('')
+  const [fromImage, setFromImage] = useState(false)
+  const [emailSource, setEmailSource] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -67,6 +71,12 @@ function App() {
     setTab(next)
   }
 
+  function remember(data, channel, source) {
+    const entry = createEntry(data, channel, source)
+    setHistory(addEntry(entry))
+    setResult(data)
+  }
+
   async function onAnalyze(event) {
     event.preventDefault()
     const text = message.trim()
@@ -78,6 +88,7 @@ function App() {
 
     setPending(true)
     setNotice('')
+    setFromImage(false)
     try {
       const response = await fetch(`${API_BASE}/analyze/text`, {
         method: 'POST',
@@ -86,11 +97,89 @@ function App() {
       })
       const data = await response.json()
       if (!response.ok) {
-        throw new Error(data.detail || 'Analysis failed')
+        setNotice(typeof data.detail === 'string' ? data.detail : 'Analysis failed')
+        return
       }
-      const entry = createEntry(data, 'text', text)
-      setResult(entry)
-      setHistory(addEntry(entry))
+      remember(data, 'text', text)
+    } catch {
+      setNotice('Could not reach the API. Start it on port 8000 and try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  function onImageChoice(event) {
+    const file = event.target.files?.[0] || null
+    setImageFile(file)
+    setImageUrl((current) => {
+      if (current) {
+        URL.revokeObjectURL(current)
+      }
+      return file ? URL.createObjectURL(file) : ''
+    })
+  }
+
+  async function onAnalyzeImage(event) {
+    event.preventDefault()
+    setResult(null)
+    if (!imageFile) {
+      setNotice('Choose an image before analyzing.')
+      return
+    }
+
+    setPending(true)
+    setNotice('')
+    setFromImage(true)
+    try {
+      const body = new FormData()
+      body.append('file', imageFile)
+      const response = await fetch(`${API_BASE}/analyze/image`, {
+        method: 'POST',
+        body,
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        setNotice(typeof data.detail === 'string' ? data.detail : 'Analysis failed')
+        return
+      }
+      remember(data, 'screenshot', data.text || imageFile.name)
+    } catch {
+      setNotice('Could not reach the API. Start it on port 8000 and try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  async function onAnalyzeEmail(event) {
+    event.preventDefault()
+    const raw = emailSource.trim()
+    setResult(null)
+    if (!raw) {
+      setNotice('Paste an email before analyzing.')
+      return
+    }
+
+    setPending(true)
+    setNotice('')
+    setFromImage(false)
+    try {
+      const response = await fetch(`${API_BASE}/analyze/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ raw }),
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        setNotice(
+          response.status === 404
+            ? 'Restart the API so the email route is loaded, then try again.'
+            : typeof data.detail === 'string'
+              ? data.detail
+              : 'Analysis failed',
+        )
+        return
+      }
+      remember(data, 'email', raw)
     } catch {
       setNotice('Could not reach the API. Start it on port 8000 and try again.')
     } finally {
@@ -158,8 +247,8 @@ function App() {
       ) : (
         <div className="flex flex-col gap-4">
           <p className="text-slate-600">
-            Paste a job or internship message. Analyze returns one risk score for the wording and
-            any links.
+            Paste a message, upload a screenshot, or paste a raw email. Each returns one risk
+            score.
           </p>
 
           <form onSubmit={onAnalyze} className="flex flex-col gap-4">
@@ -192,6 +281,49 @@ function App() {
             </div>
           </form>
 
+          <form onSubmit={onAnalyzeImage} className="flex flex-col gap-4">
+            <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
+              Screenshot
+              <input
+                type="file"
+                accept="image/*"
+                onChange={onImageChoice}
+                className="text-sm font-normal text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
+              />
+            </label>
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={pending}
+                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+              >
+                {pending ? 'Analyzing…' : 'Analyze screenshot'}
+              </button>
+            </div>
+          </form>
+
+          <form onSubmit={onAnalyzeEmail} className="flex flex-col gap-4">
+            <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
+              Raw email
+              <textarea
+                value={emailSource}
+                onChange={(event) => setEmailSource(event.target.value)}
+                rows={8}
+                placeholder="Paste a full email, including headers"
+                className="rounded-md border border-slate-300 bg-white px-3 py-2 text-base font-normal text-slate-900 outline-none focus:border-slate-500"
+              />
+            </label>
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={pending}
+                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+              >
+                {pending ? 'Analyzing…' : 'Analyze email'}
+              </button>
+            </div>
+          </form>
+
           {notice ? (
             <p
               role="alert"
@@ -199,6 +331,34 @@ function App() {
             >
               {notice}
             </p>
+          ) : null}
+
+          {fromImage && imageUrl ? (
+            <div className="relative w-fit max-w-full">
+              <img
+                src={imageUrl}
+                alt="Screenshot being analyzed"
+                className="max-w-full rounded-md border border-slate-300"
+              />
+              {result?.image_width && result.highlights
+                ? result.highlights.map((box) => (
+                    <span
+                      key={`${box.x}-${box.y}-${box.width}-${box.height}`}
+                      className="pointer-events-none absolute border-2 border-amber-700 bg-amber-400/30"
+                      style={{
+                        left: `${(box.x / result.image_width) * 100}%`,
+                        top: `${(box.y / result.image_height) * 100}%`,
+                        width: `${(box.width / result.image_width) * 100}%`,
+                        height: `${(box.height / result.image_height) * 100}%`,
+                      }}
+                    />
+                  ))
+                : null}
+            </div>
+          ) : null}
+
+          {fromImage && result?.text ? (
+            <p className="text-sm text-slate-600">Read from image: {result.text}</p>
           ) : null}
 
           {result ? <ResultView result={result} /> : null}
