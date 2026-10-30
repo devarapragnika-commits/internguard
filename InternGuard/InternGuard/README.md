@@ -38,7 +38,9 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). Paste a message and choose Analyze, upload a screenshot, or paste a raw email. The page shows one risk score when the API on port 8000 is running. If the API is running, the page also shows "API connected".
+Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). Paste a message and choose Analyze, upload a screenshot, or paste a raw email. The page shows a 0–100 gauge, points by slice, the reasons, and a recommendation when the API on port 8000 is running. If the API is running, the page also shows "API connected".
+
+History is a second tab on the same page (`#history`). Each successful text, screenshot, or email check is saved in this browser only: score, band, reasons, recommendation, slices, and a short excerpt. The full message, screenshots, and raw emails are not stored. Refreshing the page keeps the list. An API failure shows an error and does not wipe history. An empty list shows a first-use message.
 
 Screenshot reading needs the Tesseract program, not only the Python package. On Windows, install [Tesseract](https://github.com/UB-Mannheim/tesseract/wiki) and restart the API. The installer path `C:\Program Files\Tesseract-OCR\tesseract.exe` is picked up automatically. Set `TESSERACT_CMD` if it lives somewhere else.
 
