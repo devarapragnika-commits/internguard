@@ -7,9 +7,19 @@ InternGuard scores job, internship, and email messages for scam risk. The Analyz
 - Python 3.11 or newer
 - Node.js 20 or newer
 
+Commands below run from the repository root (`backend/`, `frontend/`, and `tests/` live here).
+
+## Tests
+
+```powershell
+python -m pytest tests
+```
+
+That is the only backend test command. GitHub Actions runs it on every pull request and on pushes to `main`, then runs `npm ci`, `npm run lint`, and `npm run build` in `frontend/`. The suite does not call the network, WHOIS, VirusTotal, or Tesseract. `test_llm.py` is a manual OpenRouter check and is not collected.
+
 ## Backend
 
-From this folder:
+From the repo root:
 
 ```powershell
 python -m venv .venv
@@ -30,7 +40,7 @@ API docs are at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 
 ## Frontend
 
-In a second terminal, from this folder:
+In a second terminal, from the repo root:
 
 ```powershell
 cd frontend
@@ -46,7 +56,7 @@ Screenshot reading needs the Tesseract program, not only the Python package. On 
 
 ## Baseline models
 
-The labeled file must already exist at `data/messages.csv`. This command does not create messages. From this folder:
+The labeled file must already exist at `data/messages.csv`. This command does not create messages. From the repo root:
 
 ```powershell
 python -m backend.ml.train_baselines
@@ -64,7 +74,7 @@ It trains TF-IDF plus Logistic Regression, Random Forest, and XGBoost with seed 
 
 ## Evaluation and demo report
 
-The live product is the rubric, not a model probability. From this folder:
+The live product is the rubric, not a model probability. From the repo root:
 
 ```powershell
 python -m backend.ml.evaluate_scorer
@@ -97,12 +107,6 @@ These lookups can be unknown instead of failing the call:
 - `redirects` when the check times out, the URL is not http(s), or the host is not a public address
 - `virustotal` stays off unless `VIRUSTOTAL_API_KEY` is set. If that lookup times out or fails, its status is unknown
 
-From this folder:
-
-```powershell
-python -m unittest test_url_features -v
-```
-
 ## Claimed company and domain
 
 `compare_claimed_company` in `backend/services/company_domain.py` compares the organization named in a message with the registrable domain of the link or sender. It does not read the verified-company list, and it does not check whether the TLD is suspicious. Abbreviations such as TCS are handled by the list below.
@@ -111,23 +115,11 @@ A lookalike such as a Microsoft internship leading to `secure-login.tk` is flagg
 
 Names shorter than 4 letters are ignored, including hp, ey, ge, ai, hr, it, and ibm. Generic words such as company, team, internship, and software are ignored too.
 
-From this folder:
-
-```powershell
-python -m unittest test_company_domain -v
-```
-
 ## Disguised spelling
 
 `clean_for_matching` in `backend/services/text_cleanup.py` runs before the linguistic, payment, and company checks. It applies Unicode NFKC, strips invisible characters, maps common Cyrillic and Greek lookalikes to Latin letters, swaps 0/1/3/5 only between letters, and joins spaced-out letters. The original message is what the UI shows. Screenshot OCR uses the same matching cleanup after its line-break repairs.
 
 A host that only matches a company name after that mapping, including a decoded `xn--` domain, adds 6 URL points with the reason "Link domain uses lookalike characters." Cap stays 20. `https://careers.microsoft.com` is not flagged.
-
-From this folder:
-
-```powershell
-python -m unittest test_text_cleanup -v
-```
 
 ## Verified company domains
 
@@ -141,12 +133,6 @@ When the message names a company on the list:
 - Any other domain adds 5 points, capped at 15. The reason says the company requires verification. It does not call the offer a scam.
 - A company that is not in the CSV adds no list points. The fuzzy check still runs.
 - A listed company with no link and no sender is not a list failure.
-
-From this folder:
-
-```powershell
-python -m unittest test_company_list -v
-```
 
 ## Combined score
 
@@ -163,23 +149,11 @@ Each slice is capped the way `Roadmap.txt` specifies, then divided by 110 and mu
 
 Bands are 0–19 low, 20–49 medium, and 50–100 high. A message with no link leaves URL risk at 0. If a URL lookup fails, the text score is kept and the reasons include "URL check was unavailable." Unknown domain age, redirects, and VirusTotal are not treated as risky.
 
-From this folder:
-
-```powershell
-python -m unittest test_risk -v
-```
-
 ## Email headers and attachments
 
 `POST /analyze/email` accepts a raw RFC 822 message, or headers plus a snippet and attachment filenames. HTML is not rendered, remote images are not loaded, and attachments are not opened. The subject and snippet go through the same linguistic and payment checks. Links in the raw source go through the URL checks. Sender and attachment points are added in `score_message`, still divided by 110.
 
 If the headers cannot be read, the text score is kept and the reasons include "Sender check was unavailable." Tests use fixture headers and filenames. They do not open a mailbox.
-
-From this folder:
-
-```powershell
-python -m unittest test_mail -v
-```
 
 ## Demo inbox
 
@@ -187,30 +161,12 @@ python -m unittest test_mail -v
 
 The Demo inbox tab on the React page lists those rows. A Chrome Manifest V3 extension in `extension/` shows the same sandbox list. It requests no send or modify scopes. Load it unpacked from `extension/` in `chrome://extensions` with Developer mode on. The API on port 8000 must be running.
 
-From this folder:
-
-```powershell
-python -m unittest test_inbox -v
-```
-
 ## Screenshots
 
 `POST /analyze/image` accepts one image. Tesseract reads it on the server. The text is cleaned (a word split across a line, a digit between letters, spaced-out letters, and spaces inside a link) and then passed to `score_message`. The response is the same score, band, reasons, and recommendation, plus highlight boxes for the phrases that fired.
 
 An empty file, a non-image, or a failed read returns a clear error and no score. Tests do not call Tesseract or a paid API.
 
-From this folder:
-
-```powershell
-python -m unittest test_ocr -v
-```
-
 ## Payment requests
 
 `detect_payment_request` in `backend/services/payment.py` scores only the financial-request slice. A fee, deposit, gift card, crypto payment, or a demand to pay for an offer letter or laptop sets that score to 25. A message with no payment demand leaves it at 0. "No registration fee" does not count.
-
-From this folder:
-
-```powershell
-python -m unittest test_payment -v
-```
