@@ -1,0 +1,14 @@
+{
+  "legitimate": {
+    "expected_band": "low",
+    "text": "Our campus internship is unpaid. Apply on the company careers page. There is no fee."
+  },
+  "obvious_scam": {
+    "expected_band": "high",
+    "text": "Congratulations, you are selected. Pay the registration fee today only. Guaranteed internship. Do not share this. Send your bank account number. Act now. Apply at http://microsoft.secure-login.tk/offer"
+  },
+  "subtle": {
+    "expected_band": "medium",
+    "text": "Tata Consultancy Services internship. Kindly pay the joining fee to confirm your seat. Apply at https://secure-login.tk/offer"
+  }
+}
