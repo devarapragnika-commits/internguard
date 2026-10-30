@@ -1,6 +1,6 @@
 # InternGuard
 
-InternGuard scores job, internship, and email messages for scam risk. The Analyze page accepts pasted text, a screenshot, and a raw email. Each call returns one 0–100 score, a band, the reasons, and a recommendation.
+InternGuard scores job, internship, and email messages for scam risk. The Analyze page accepts pasted text, a screenshot, and a raw email. Each call returns one 0–100 score, a band, the reasons, and a recommendation. The Demo inbox page lists fixture messages with a low, medium, or high badge before a row is opened.
 
 ## Requirements
 
@@ -38,7 +38,7 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). Paste a message and choose Analyze, upload a screenshot, or paste a raw email. The page shows a 0–100 gauge, points by slice, the reasons, and a recommendation when the API on port 8000 is running. If the API is running, the page also shows "API connected".
+Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). Paste a message and choose Analyze, upload a screenshot, or paste a raw email. Choose Demo inbox (`#inbox`) to see pre-open badges on sandbox messages. The page shows a 0–100 gauge, points by slice, the reasons, and a recommendation when the API on port 8000 is running. If the API is running, the page also shows "API connected".
 
 History is a second tab on the same page (`#history`). Each successful text, screenshot, or email check is saved in this browser only: score, band, reasons, recommendation, slices, and a short excerpt. The full message, screenshots, and raw emails are not stored. Refreshing the page keeps the list. An API failure shows an error and does not wipe history. An empty list shows a first-use message.
 
@@ -154,6 +154,18 @@ From this folder:
 
 ```powershell
 python -m unittest test_mail -v
+```
+
+## Demo inbox
+
+`GET /inbox` scores three local fixture messages from headers, a snippet, and attachment filenames. It does not open a Gmail account, fetch a message body, or load remote images. Each row already has a band from `score_message` (0–19 low, 20–49 medium, 50–100 high). Opening a row shows the same score, reasons, and recommendation under that row.
+
+The Demo inbox tab on the React page lists those rows. A Chrome Manifest V3 extension in `extension/` shows the same sandbox list. It requests no send or modify scopes. Load it unpacked from `extension/` in `chrome://extensions` with Developer mode on. The API on port 8000 must be running.
+
+From this folder:
+
+```powershell
+python -m unittest test_inbox -v
 ```
 
 ## Screenshots
