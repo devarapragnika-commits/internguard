@@ -1,1 +1,1 @@
-"""Analysis services. URL checks live in url_features. Later issues add scoring and email parsing here."""
+"""Analysis services. The combined score, payment, company, and URL checks live in their own modules."""

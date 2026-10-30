@@ -1,20 +1,20 @@
-"""Text analysis route."""
+"""Paste-text analysis. One call returns the combined text and URL score."""
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
-from backend.services.text_score import score_text
+from backend.services.risk import score_message
 
 router = APIRouter()
 
 
-class AnalyzeTextRequest(BaseModel):
-    text: str = Field(min_length=1)
+class AnalyzeTextBody(BaseModel):
+    text: str = ""
 
 
 @router.post("/analyze/text")
-def analyze_text(body: AnalyzeTextRequest) -> dict[str, object]:
+def analyze_text(body: AnalyzeTextBody) -> dict:
     message = body.text.strip()
     if not message:
-        raise HTTPException(status_code=422, detail="Message text is required.")
-    return score_text(message)
+        raise HTTPException(status_code=400, detail="Paste a message before analyzing.")
+    return score_message(message)
