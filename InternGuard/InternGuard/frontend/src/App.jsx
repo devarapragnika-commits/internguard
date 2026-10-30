@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 
 import HistoryView from './components/HistoryView.jsx'
 import ResultView from './components/ResultView.jsx'
+import Inbox from './Inbox'
 import { addEntry, clearHistory, createEntry, isHistoryKey, loadHistory } from './history.js'
 
 const API_BASE = 'http://127.0.0.1:8000'
-const TABS = ['analyze', 'history']
+const TABS = ['analyze', 'inbox', 'history']
 
 function tabFromHash() {
   const tab = window.location.hash.replace('#', '')
@@ -209,7 +210,7 @@ function App() {
         <div>
           <p className="text-sm font-medium tracking-wide text-slate-500">InternGuard</p>
           <h1 className="mt-1 text-3xl font-semibold text-slate-900">
-            {tab === 'history' ? 'Past checks' : 'Analyze a message'}
+            {tab === 'history' ? 'Past checks' : tab === 'inbox' ? 'Demo inbox' : 'Analyze a message'}
           </h1>
         </div>
         <nav className="flex gap-2" aria-label="Pages">
@@ -223,6 +224,17 @@ function App() {
             className={tabClass('analyze')}
           >
             Analyze
+          </a>
+          <a
+            href="#inbox"
+            onClick={(event) => {
+              event.preventDefault()
+              goTo('inbox')
+            }}
+            aria-current={tab === 'inbox' ? 'page' : undefined}
+            className={tabClass('inbox')}
+          >
+            Demo inbox
           </a>
           <a
             href="#history"
@@ -244,6 +256,14 @@ function App() {
           onStart={() => goTo('analyze')}
           onClear={onClearHistory}
         />
+      ) : tab === 'inbox' ? (
+        <div className="flex max-w-2xl flex-col gap-4">
+          <p className="text-slate-600">
+            Sandbox fixtures, not a personal account. Each unopened row shows a low, medium, or
+            high badge from the sender and attachment scorer. Choose a row to see why.
+          </p>
+          <Inbox apiBase={API_BASE} apiState={apiState} />
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
           <p className="text-slate-600">

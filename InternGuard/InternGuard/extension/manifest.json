@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "InternGuard Inbox",
+  "version": "0.1.0",
+  "description": "Shows a low, medium, or high risk badge on a sandbox inbox before a message is opened. No Gmail account.",
+  "action": {
+    "default_title": "InternGuard Inbox",
+    "default_popup": "popup.html"
+  },
+  "permissions": [],
+  "host_permissions": ["http://127.0.0.1:8000/*", "http://localhost:8000/*"]
+}
