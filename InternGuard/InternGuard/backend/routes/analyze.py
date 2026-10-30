@@ -1,8 +1,9 @@
-"""Paste-text and screenshot analysis. Both return the combined risk score."""
+"""Paste-text, screenshot, and email analysis. Each returns the combined risk score."""
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from backend.services.mail import MAX_EMAIL_BYTES, score_email
 from backend.services.ocr import MAX_IMAGE_BYTES, OcrError, score_screenshot
 from backend.services.risk import score_message
 
@@ -11,6 +12,18 @@ router = APIRouter()
 
 class AnalyzeTextBody(BaseModel):
     text: str = ""
+
+
+class AnalyzeAttachment(BaseModel):
+    filename: str = ""
+    content_type: str = ""
+
+
+class AnalyzeEmailBody(BaseModel):
+    raw: str = ""
+    headers: str = ""
+    snippet: str = ""
+    attachments: list[AnalyzeAttachment] = Field(default_factory=list)
 
 
 @router.post("/analyze/text")
@@ -37,3 +50,18 @@ async def analyze_image(file: UploadFile | None = File(default=None)) -> dict:
         return score_screenshot(data)
     except OcrError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/analyze/email")
+def analyze_email(body: AnalyzeEmailBody) -> dict:
+    raw = body.raw.strip()
+    headers = body.headers.strip()
+    snippet = body.snippet.strip()
+    attachments = [
+        {"filename": item.filename, "content_type": item.content_type} for item in body.attachments
+    ]
+    if not raw and not headers and not snippet and not attachments:
+        raise HTTPException(status_code=400, detail="Paste an email before analyzing.")
+    if len(raw.encode("utf-8", errors="replace")) > MAX_EMAIL_BYTES:
+        raise HTTPException(status_code=400, detail="That email is too large.")
+    return score_email(raw or None, headers=headers or None, snippet=snippet or None, attachments=attachments)

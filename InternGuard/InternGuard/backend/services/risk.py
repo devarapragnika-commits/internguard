@@ -5,8 +5,8 @@ The roadmap slices and caps are:
 - Linguistic / text risk: 4 points for each fired signal, at most 20, cap 25
 - Financial request risk: 25 when the payment detector flags, cap 25
 - URL / domain risk: the signals below, cap 20
-- Sender authenticity: 0, cap 15 (email headers are out of scope)
-- Attachment risk: 0, cap 10 (email attachments are out of scope)
+- Sender authenticity: SPF, DKIM, DMARC, free-mail company display names, and Reply-To mismatch, cap 15
+- Attachment risk: dangerous and double extensions, macro Office files, and type mismatch, cap 10
 - Company verification: 5 when a listed company's domain is not on its list, cap 15
 
 Claimed-company mismatch stays in the URL slice. When the verified list
@@ -29,6 +29,7 @@ from typing import TypedDict
 from backend.linguistic import LINGUISTIC_SIGNALS, extract_linguistic_features
 from backend.services.company_domain import compare_claimed_company
 from backend.services.company_list import check_verified_company
+from backend.services.mail import SliceFlags
 from backend.services.payment import detect_payment_request
 from backend.services.url_features import extract_url_features
 
@@ -54,6 +55,11 @@ HIGH_AT = 50
 _URL = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
 _UNAVAILABLE = "URL check was unavailable."
 _PAY = "Do not pay. Verify the sender through the official company channel."
+_PAY_AND_ATTACH = (
+    "Do not pay. Do not open attachments. "
+    "Verify the sender through the official company channel."
+)
+_ATTACH = "Do not open attachments. Verify the sender through the official company channel."
 _VERIFY = "Verify the sender through the official company channel."
 _PROCEED = "Proceed with normal caution."
 
@@ -72,17 +78,29 @@ class RiskScore(TypedDict):
     slices: dict[str, SliceScore]
 
 
-def score_message(text: str | None) -> RiskScore:
+def score_message(
+    text: str | None,
+    *,
+    sender: SliceFlags | None = None,
+    attachments: SliceFlags | None = None,
+    sender_address: str | None = None,
+) -> RiskScore:
     """Return one score, one band, and one list of reasons.
 
     ``score`` is 0–100. ``slices`` keeps the capped points before that
     normalization. Empty text returns a zero score and does not raise.
+    Pasted text leaves sender and attachment points at 0. Email analysis
+    passes those slices in.
     """
     raw = _as_text(text)
     linguistic_points, linguistic_reasons, linguistic_flags = _linguistic(raw)
     payment = detect_payment_request(raw)
     financial_points = payment["financial_request_risk"]
     url_points, url_reasons, url_flags = _url_risk(raw)
+    sender_slice = sender or _empty_slice()
+    attachment_slice = attachments or _empty_slice()
+    sender_points = min(sender_slice["points"], SENDER_CAP)
+    attachment_points = min(attachment_slice["points"], ATTACHMENT_CAP)
 
     reasons = list(linguistic_reasons)
     flags = list(linguistic_flags)
@@ -91,26 +109,37 @@ def score_message(text: str | None) -> RiskScore:
         flags.append(payment["flag"])
     reasons.extend(url_reasons)
     flags.extend(url_flags)
-    verified = check_verified_company(raw)
+    verified = check_verified_company(raw, sender=sender_address)
     company_points = min(verified["points"], COMPANY_VERIFICATION_CAP)
     if verified["reason"]:
         reasons.append(verified["reason"])
         flags.append(verified["flag"])
+    reasons.extend(sender_slice["reasons"])
+    flags.extend(sender_slice["flags"])
+    reasons.extend(attachment_slice["reasons"])
+    flags.extend(attachment_slice["flags"])
 
-    raw_points = linguistic_points + financial_points + url_points + company_points
+    raw_points = (
+        linguistic_points
+        + financial_points
+        + url_points
+        + sender_points
+        + attachment_points
+        + company_points
+    )
     score = _normalize(raw_points)
     return {
         "score": score,
         "band": _band(score),
         "reasons": reasons,
         "flags": flags,
-        "recommendation": _recommendation(financial_points, flags),
+        "recommendation": _recommendation(financial_points, attachment_points, flags),
         "slices": {
             "linguistic": {"points": linguistic_points, "cap": LINGUISTIC_CAP},
             "financial_request": {"points": financial_points, "cap": FINANCIAL_CAP},
             "url_domain": {"points": url_points, "cap": URL_CAP},
-            "sender_authenticity": {"points": 0, "cap": SENDER_CAP},
-            "attachment": {"points": 0, "cap": ATTACHMENT_CAP},
+            "sender_authenticity": {"points": sender_points, "cap": SENDER_CAP},
+            "attachment": {"points": attachment_points, "cap": ATTACHMENT_CAP},
             "company_verification": {"points": company_points, "cap": COMPANY_VERIFICATION_CAP},
         },
     }
@@ -260,7 +289,15 @@ def _band(score: int) -> str:
     return "low"
 
 
-def _recommendation(financial_points: int, flags: list[str]) -> str:
+def _empty_slice() -> SliceFlags:
+    return {"points": 0, "reasons": [], "flags": [], "unavailable": False}
+
+
+def _recommendation(financial_points: int, attachment_points: int, flags: list[str]) -> str:
+    if financial_points > 0 and attachment_points > 0:
+        return _PAY_AND_ATTACH
+    if attachment_points > 0:
+        return _ATTACH
     if financial_points > 0:
         return _PAY
     if flags:
