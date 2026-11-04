@@ -8,10 +8,14 @@
   <body>
     <header>
       <p class="kicker">InternGuard</p>
-      <h1>Inbox badges</h1>
-      <p class="lede">Gmail list rows use subject, sender, and snippet already on the page. Sandbox fixtures still work with no Gmail account.</p>
+      <h1>Page scan</h1>
+      <p class="lede">Score a LinkedIn or Indeed listing already on the page. Gmail list badges and sandbox fixtures still work with no extra account.</p>
     </header>
     <p id="status">Loading…</p>
+    <section id="listing-result" hidden>
+      <h2 id="listing-heading">This listing</h2>
+      <div id="listing-detail" class="detail"></div>
+    </section>
     <h2 id="gmail-heading" hidden>This Gmail tab</h2>
     <ul id="gmail-list"></ul>
     <h2 id="sandbox-heading">Sandbox fixtures</h2>

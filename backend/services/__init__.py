@@ -1,1 +1,1 @@
-"""Analysis services. Screenshot OCR, email headers, the sandbox inbox, Gmail list metadata, the combined score, payment, company, company list, disguised spelling, and URL checks live in their own modules."""
+"""Analysis services. Screenshot OCR, email headers, the sandbox inbox, Gmail list metadata, listing text, the combined score, payment, company, company list, disguised spelling, and URL checks live in their own modules."""

@@ -1,6 +1,6 @@
 # InternGuard
 
-InternGuard scores job, internship, and email messages for scam risk. The Analyze page accepts pasted text, a screenshot, and a raw email. Each call returns one 0–100 score, a band, the reasons, and a recommendation. The Demo inbox page lists fixture messages with a low, medium, or high badge before a row is opened. The Chrome extension also badges Gmail list rows from the subject, sender, and snippet already on the page.
+InternGuard scores job, internship, and email messages for scam risk. The Analyze page accepts pasted text, a screenshot, and a raw email. Each call returns one 0–100 score, a band, the reasons, and a recommendation. The Demo inbox page lists fixture messages with a low, medium, or high badge before a row is opened. The Chrome extension badges Gmail list rows from metadata already on the page, and can score a LinkedIn or Indeed listing the user already opened.
 
 ## One-command start
 
@@ -193,6 +193,12 @@ On `https://mail.google.com/*`, the same extension reads subject, sender, and sn
 The badge uses the same bands as `score_message` (0–19 low, 20–49 medium, 50–100 high). Clicking the badge shows the score and reasons without opening the thread. Opening that row in the extension popup shows the same score and reasons.
 
 Use a throwaway test Gmail, never a personal inbox. The fixture sandbox in Demo inbox and in the popup still runs with no Gmail account.
+
+## LinkedIn and job-board listings
+
+Click the extension icon on an open LinkedIn job, LinkedIn message, or Indeed listing. The extension reads the visible text already on the page and POSTs it to `/analyze/text`. The popup shows the same score, reasons, and recommendation as pasting that text on the Analyze page. The listing is not stored, and the extension does not scrape pages the user has not opened.
+
+Automated tests use local LinkedIn-style and Indeed-style HTML fixtures. They do not need a LinkedIn, Indeed, or Gmail account. The Analyze page is unchanged.
 
 ## Screenshots
 

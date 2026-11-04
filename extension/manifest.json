@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "InternGuard Inbox",
-  "version": "0.2.0",
-  "description": "Shows a low, medium, or high risk badge on Gmail list rows from subject, sender, and snippet. Sandbox fixtures still work with no Gmail account.",
+  "version": "0.3.0",
+  "description": "Scores a LinkedIn or Indeed listing from the open page, and badges Gmail list rows from subject, sender, and snippet.",
   "action": {
     "default_title": "InternGuard Inbox",
     "default_popup": "popup.html"
@@ -17,6 +17,16 @@
       "matches": ["https://mail.google.com/*"],
       "js": ["content.js"],
       "css": ["content.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.linkedin.com/*",
+        "https://linkedin.com/*",
+        "https://www.indeed.com/*",
+        "https://indeed.com/*"
+      ],
+      "js": ["listing.js"],
       "run_at": "document_idle"
     }
   ]
