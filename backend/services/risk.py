@@ -13,7 +13,9 @@ Claimed-company mismatch stays in the URL slice. When the verified list
 confirms the domain, that fuzzy mismatch is not added.
 
 The raw points are divided by 110, the sum of the caps, then multiplied by
-100. Bands are low (0–19), medium (20–49), and high (50–100).
+100. Bands are low (0–19), medium (20–25), and high (26–100). Those cuts
+were calibrated on ``data/messages.csv``: the old high cut at 50 missed
+every labeled scam, and every legitimate row scored 0.
 
 A message with no link leaves URL risk at 0. A failed or unknown URL lookup
 does not drop the text score. That result adds the reason "URL check was
@@ -59,7 +61,9 @@ URL_TIMEOUT = 5.0
 URL_MESSAGE_TIMEOUT = 5.0
 
 MEDIUM_AT = 20
-HIGH_AT = 50
+HIGH_AT = 26
+PREVIOUS_MEDIUM_AT = 20
+PREVIOUS_HIGH_AT = 50
 
 _URL = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
 _UNAVAILABLE = "URL check was unavailable."
@@ -318,12 +322,24 @@ def _normalize(points: int) -> int:
     return min(score, 100)
 
 
-def _band(score: int) -> str:
-    if score >= HIGH_AT:
+def band_for_score(
+    score: int,
+    *,
+    medium_at: int | None = None,
+    high_at: int | None = None,
+) -> str:
+    """Map a 0–100 score onto low / medium / high. Rubric weights stay the same."""
+    medium = MEDIUM_AT if medium_at is None else medium_at
+    high = HIGH_AT if high_at is None else high_at
+    if score >= high:
         return "high"
-    if score >= MEDIUM_AT:
+    if score >= medium:
         return "medium"
     return "low"
+
+
+def _band(score: int) -> str:
+    return band_for_score(score)
 
 
 def _empty_slice() -> SliceFlags:

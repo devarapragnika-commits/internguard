@@ -10,5 +10,13 @@
     "scam": 81
   },
   "rubric_mapping": "low=legitimate, medium=suspicious, high=scam",
+  "previous_bands": {
+    "medium_at": 20,
+    "high_at": 50
+  },
+  "live_bands": {
+    "medium_at": 20,
+    "high_at": 26
+  },
   "url_lookups": "WHOIS and redirects are stubbed so the table can be regenerated offline"
 }

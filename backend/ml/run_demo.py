@@ -83,13 +83,19 @@ def run_demo() -> dict:
     }
     DEMO_DIR.mkdir(parents=True, exist_ok=True)
     (DEMO_DIR / "last_run.json").write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    expected = {
-        item["id"]: {
+    expected = {}
+    for item in rows:
+        entry = {
             "expected_band": item["channels"]["text"]["band"],
             "text": item["text"],
         }
-        for item in rows
-    }
+        if item["id"] == "subtle" and item["channels"]["text"]["band"] == "high":
+            entry["reason"] = (
+                "High cut moved from 50 to 26 after calibration on data/messages.csv. "
+                "Labeled scams never reached 50; this joining-fee plus lookalike link "
+                f"scores {item['channels']['text']['score']}."
+            )
+        expected[item["id"]] = entry
     (DEMO_DIR / "expected.json").write_text(json.dumps(expected, indent=2), encoding="utf-8")
     for demo in DEMOS:
         (DEMO_DIR / f"{demo['id']}.eml").write_text(
