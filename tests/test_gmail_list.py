@@ -187,10 +187,10 @@ class GmailListExtensionTests(unittest.TestCase):
         self.assertEqual(manifest["manifest_version"], 3)
         self.assertEqual(manifest["host_permissions"], ["http://127.0.0.1:8000/*", "http://localhost:8000/*"])
         self.assertNotIn("identity", manifest.get("permissions", []))
-        self.assertEqual(
-            manifest["content_scripts"][0]["matches"],
-            ["https://mail.google.com/*"],
+        gmail_script = next(
+            item for item in manifest["content_scripts"] if "content.js" in item.get("js", [])
         )
+        self.assertEqual(gmail_script["matches"], ["https://mail.google.com/*"])
         self.assertEqual(manifest["background"]["service_worker"], "background.js")
         for forbidden in (
             "gmail.send",

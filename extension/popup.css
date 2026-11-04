@@ -32,7 +32,8 @@ h1 {
 }
 
 #gmail-heading,
-#sandbox-heading {
+#sandbox-heading,
+#listing-heading {
   margin: 12px 16px 0;
   font-size: 12px;
   font-weight: 700;
@@ -52,6 +53,10 @@ h1 {
 
 #gmail-list:empty {
   display: none;
+}
+
+#listing-result .detail {
+  border-top: 1px solid #e2e8f0;
 }
 
 .row {
