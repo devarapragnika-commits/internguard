@@ -1,8 +1,9 @@
-"""Paste-text, screenshot, and email analysis. Each returns the combined risk score."""
+"""Paste-text, screenshot, email, and Gmail-list analysis. Each returns the combined risk score."""
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 
+from backend.services.gmail_list import MAX_LIST_MESSAGES, score_list_messages
 from backend.services.mail import MAX_EMAIL_BYTES, score_email
 from backend.services.ocr import MAX_IMAGE_BYTES, OcrError, score_screenshot
 from backend.services.risk import score_message
@@ -24,6 +25,17 @@ class AnalyzeEmailBody(BaseModel):
     headers: str = ""
     snippet: str = ""
     attachments: list[AnalyzeAttachment] = Field(default_factory=list)
+
+
+class AnalyzeListMessage(BaseModel):
+    from_name: str = ""
+    from_address: str = ""
+    subject: str = ""
+    snippet: str = ""
+
+
+class AnalyzeListBody(BaseModel):
+    messages: list[AnalyzeListMessage] = Field(default_factory=list)
 
 
 @router.post("/analyze/text")
@@ -65,3 +77,21 @@ def analyze_email(body: AnalyzeEmailBody) -> dict:
     if len(raw.encode("utf-8", errors="replace")) > MAX_EMAIL_BYTES:
         raise HTTPException(status_code=400, detail="That email is too large.")
     return score_email(raw or None, headers=headers or None, snippet=snippet or None, attachments=attachments)
+
+
+@router.post("/analyze/list")
+def analyze_list(body: AnalyzeListBody) -> dict:
+    messages = [
+        {
+            "from_name": item.from_name,
+            "from_address": item.from_address,
+            "subject": item.subject,
+            "snippet": item.snippet,
+        }
+        for item in body.messages
+    ]
+    if not messages:
+        raise HTTPException(status_code=400, detail="Paste list metadata before analyzing.")
+    if len(messages) > MAX_LIST_MESSAGES:
+        raise HTTPException(status_code=400, detail="Too many messages.")
+    return score_list_messages(messages)

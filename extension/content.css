@@ -1,0 +1,60 @@
+.internguard-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  border: 0;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+.internguard-badge.high {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.internguard-badge.medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.internguard-badge.low {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.internguard-detail {
+  position: fixed;
+  z-index: 2147483647;
+  width: 340px;
+  max-height: 280px;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+}
+
+.internguard-detail-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.internguard-detail ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.internguard-detail p {
+  margin: 8px 0 0;
+}

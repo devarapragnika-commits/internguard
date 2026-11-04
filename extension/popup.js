@@ -1,5 +1,7 @@
 const API_BASE = 'http://127.0.0.1:8000'
 const listEl = document.getElementById('list')
+const gmailListEl = document.getElementById('gmail-list')
+const gmailHeadingEl = document.getElementById('gmail-heading')
 const statusEl = document.getElementById('status')
 
 function bandLabel(band) {
@@ -30,8 +32,8 @@ function detailHtml(row) {
   `
 }
 
-function renderList(messages) {
-  listEl.innerHTML = ''
+function renderList(messages, target) {
+  target.innerHTML = ''
   messages.forEach((row) => {
     const item = document.createElement('li')
     const button = document.createElement('button')
@@ -51,8 +53,8 @@ function renderList(messages) {
     detail.innerHTML = detailHtml(row)
     button.addEventListener('click', () => {
       const wasOpen = !detail.hidden
-      listEl.querySelectorAll('.row').forEach((node) => node.classList.remove('selected'))
-      listEl.querySelectorAll('.detail').forEach((node) => {
+      target.querySelectorAll('.row').forEach((node) => node.classList.remove('selected'))
+      target.querySelectorAll('.detail').forEach((node) => {
         node.hidden = true
       })
       if (!wasOpen) {
@@ -62,7 +64,32 @@ function renderList(messages) {
     })
     item.appendChild(button)
     item.appendChild(detail)
-    listEl.appendChild(item)
+    target.appendChild(item)
+  })
+}
+
+function loadGmailRows() {
+  if (typeof chrome === 'undefined' || !chrome.tabs) {
+    return
+  }
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tab = tabs && tabs[0]
+    if (!tab || !tab.id) {
+      return
+    }
+    chrome.tabs.sendMessage(tab.id, { type: 'get-gmail-rows' }, (response) => {
+      if (chrome.runtime.lastError || !response || !response.ok) {
+        return
+      }
+      const messages = response.messages || []
+      if (!messages.length) {
+        return
+      }
+      gmailHeadingEl.hidden = false
+      renderList(messages, gmailListEl)
+      statusEl.textContent =
+        'Gmail badges use subject, sender, and snippet already on the page. Opening a row here shows the same score and reasons.'
+    })
   })
 }
 
@@ -75,8 +102,10 @@ fetch(`${API_BASE}/inbox`)
   })
   .then((data) => {
     statusEl.textContent = 'Sandbox inbox. Choose a row to see why it was flagged.'
-    renderList(data.messages || [])
+    renderList(data.messages || [], listEl)
+    loadGmailRows()
   })
   .catch(() => {
     statusEl.textContent = 'Start the InternGuard API on port 8000, then open this popup again.'
+    loadGmailRows()
   })
