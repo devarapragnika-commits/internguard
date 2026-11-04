@@ -1,0 +1,16 @@
+.git
+.github
+.venv
+.env
+InternGuard
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+frontend/node_modules
+frontend/dist
+frontend/.vite
+data/phishing-website-screenshots
+models
+demos
+docs
+tests

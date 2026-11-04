@@ -10,6 +10,7 @@ from backend.services import url_features
 
 @pytest.fixture(autouse=True)
 def _stub_url_lookups():
+    url_features.clear_lookup_cache()
     with patch.object(url_features, "_lookup_whois", return_value=datetime(2018, 1, 15)):
         with patch.object(
             url_features,
@@ -17,3 +18,4 @@ def _stub_url_lookups():
             side_effect=AssertionError("VirusTotal was called"),
         ):
             yield
+    url_features.clear_lookup_cache()
