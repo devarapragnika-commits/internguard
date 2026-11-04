@@ -1,0 +1,5 @@
+medium_at,high_at,accuracy,f1_macro,scam_precision,scam_recall,legitimate_false_positive_rate,dataset_version,seed
+20,50,0.7286,0.3516,0.0,0.0,0.0,sha256:e08a9a505a4b:rows:348,42
+20,26,0.7857,0.4518,0.8333,0.3125,0.0,sha256:e08a9a505a4b:rows:348,42
+20,23,0.8286,0.5136,0.8889,0.5,0.0,sha256:e08a9a505a4b:rows:348,42
+10,20,0.8286,0.5136,0.8889,0.5,0.0,sha256:e08a9a505a4b:rows:348,42

@@ -47,8 +47,8 @@ DEMO_LIST_MESSAGES = [
     {
         "from_name": "Hiring Desk",
         "from_address": "desk@campus-jobs.example",
-        "subject": "Registration fee for onboarding",
-        "snippet": "Kindly pay the registration fee to confirm your place.",
+        "subject": "Microsoft onboarding — apply immediately",
+        "snippet": "Microsoft internship. Apply immediately at http://microsoft.secure-login.tk/offer",
     },
     {
         "from_name": "Recruiting",

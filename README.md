@@ -104,7 +104,7 @@ python -m backend.ml.evaluate_scorer
 python -m backend.ml.run_demo
 ```
 
-`evaluate_scorer` writes `models/evaluation.csv` for the three baselines and the rubric, including scam precision, scam recall, and the false-positive rate on legitimate rows. `run_demo` scores the three messages in `demos/` on text, a link inside the message, a generated screenshot, and a `.eml` fixture. Screenshot scoring is skipped if Tesseract is not installed.
+`evaluate_scorer` writes `models/evaluation.csv` for the three baselines, the previous 20/50 rubric cuts, and the live rubric, including scam precision, scam recall, and the false-positive rate on legitimate rows. It also writes `models/band_calibration.csv` for other cuts on the same scores. `run_demo` scores the three messages in `demos/` on text, a link inside the message, a generated screenshot, and a `.eml` fixture. Screenshot scoring is skipped if Tesseract is not installed.
 
 The writeup is `docs/demo-report.md`. The comparison table in that file must match `models/evaluation.csv` after a fresh run. Expected bands are in `demos/expected.json`.
 
@@ -172,7 +172,7 @@ Each slice is capped the way `Roadmap.txt` specifies, then divided by 110 and mu
 - Sender authenticity scores up to 15: SPF fail 5, DKIM fail 5, DMARC fail 5, a company display name on a free mailbox 6, and a Reply-To mismatch 4
 - Attachment risk scores up to 10: a double extension such as pdf.exe 6, a dangerous extension 5, a macro-enabled Office file 4, and an extension that does not match the declared type 4
 
-Bands are 0–19 low, 20–49 medium, and 50–100 high. A message with no link leaves URL risk at 0. If a URL lookup fails, the text score is kept and the reasons include "URL check was unavailable." Unknown domain age, redirects, and VirusTotal are not treated as risky.
+Bands are 0–19 low, 20–25 medium, and 26–100 high. Those cuts were calibrated on `data/messages.csv`. The previous high cut at 50 missed every labeled scam, and every legitimate row scored 0. Rubric weights are unchanged. A message with no link leaves URL risk at 0. If a URL lookup fails, the text score is kept and the reasons include "URL check was unavailable." Unknown domain age, redirects, and VirusTotal are not treated as risky.
 
 ## Email headers and attachments
 
@@ -182,7 +182,7 @@ If the headers cannot be read, the text score is kept and the reasons include "S
 
 ## Demo inbox
 
-`GET /inbox` scores three local fixture messages from headers, a snippet, and attachment filenames. It does not open a Gmail account, fetch a message body, or load remote images. Each row already has a band from `score_message` (0–19 low, 20–49 medium, 50–100 high). Opening a row shows the same score, reasons, and recommendation under that row.
+`GET /inbox` scores three local fixture messages from headers, a snippet, and attachment filenames. It does not open a Gmail account, fetch a message body, or load remote images. Each row already has a band from `score_message` (0–19 low, 20–25 medium, 26–100 high). Opening a row shows the same score, reasons, and recommendation under that row.
 
 The Demo inbox tab on the React page lists those rows. A Chrome Manifest V3 extension in `extension/` still shows that sandbox list when no Gmail account is signed in. It requests no send or modify scopes. Load it unpacked from `extension/` in `chrome://extensions` with Developer mode on. The API on port 8000 must be running.
 
@@ -190,7 +190,7 @@ The Demo inbox tab on the React page lists those rows. A Chrome Manifest V3 exte
 
 On `https://mail.google.com/*`, the same extension reads subject, sender, and snippet from the list DOM and calls `POST /analyze/list`. That route scores many rows in one request from list metadata only. It does not open a Gmail account, fetch a full message body, or load remote images. There is no Gmail OAuth send or modify scope.
 
-The badge uses the same bands as `score_message` (0–19 low, 20–49 medium, 50–100 high). Clicking the badge shows the score and reasons without opening the thread. Opening that row in the extension popup shows the same score and reasons.
+The badge uses the same bands as `score_message` (0–19 low, 20–25 medium, 26–100 high). Clicking the badge shows the score and reasons without opening the thread. Opening that row in the extension popup shows the same score and reasons.
 
 Use a throwaway test Gmail, never a personal inbox. The fixture sandbox in Demo inbox and in the popup still runs with no Gmail account.
 

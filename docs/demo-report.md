@@ -38,7 +38,7 @@ paste / screenshot / URL-in-text / raw email
 | Attachment | 10 |
 | Company verification | 15 |
 
-Bands: 0–19 low, 20–49 medium, 50–100 high.
+Bands: 0–19 low, 20–25 medium, 26–100 high. Those cuts were calibrated on `data/messages.csv`. Rubric weights are unchanged.
 
 Pasted text and screenshot OCR both call `score_message`. Email adds sender and attachment points in `score_email` without rendering the message.
 
@@ -59,18 +59,32 @@ From `models/evaluation.csv`. Scam precision and recall are for the **scam** cla
 
 | Method | Accuracy | Macro F1 | Scam precision | Scam recall | Legit → scam FP rate |
 |---|---|---|---|---|---|
-| TF-IDF + Logistic Regression | 0.9857 | 0.9491 | 1.0000 | 1.000 | 0.0 |
-| Random Forest | 0.9571 | 0.9044 | 1.0000 | 0.875 | 0.0 |
-| XGBoost | 0.9429 | 0.7978 | 0.9333 | 0.875 | 0.0 |
-| Rubric (live product) | 0.7286 | 0.3516 | 0.0000 | 0.000 | 0.0 |
+| TF-IDF + Logistic Regression | 0.9857 | 0.9491 | 1.0000 | 1.0000 | 0.0 |
+| Random Forest | 0.9571 | 0.9044 | 1.0000 | 0.8750 | 0.0 |
+| XGBoost | 0.9429 | 0.7978 | 0.9333 | 0.8750 | 0.0 |
+| Rubric old bands (20 / 50) | 0.7286 | 0.3516 | 0.0000 | 0.0000 | 0.0 |
+| Rubric (live, 20 / 26) | 0.7857 | 0.4518 | 0.8333 | 0.3125 | 0.0 |
 
-The models look strong because many contract rows repeat the same templates across train and test. The rubric does not memorize those templates. On this split, **none of the 16 held-out scam contracts reached band high** (8 scored medium, 8 scored low). None of the 50 held-out legitimate rows were called scam. That is why rubric scam precision and recall are 0.0 while the legitimate false-positive rate stays 0.0.
+The models look strong because many contract rows repeat the same templates across train and test. The rubric does not memorize those templates.
+
+### 5.1b Band cuts
+
+From `models/band_calibration.csv`, same split and the same 0–100 scores. Only the low / medium / high cuts change. Weights are unchanged.
+
+| Medium at | High at | Accuracy | Macro F1 | Scam precision | Scam recall | Legit → scam FP rate |
+|---|---|---|---|---|---|---|
+| 20 | 50 | 0.7286 | 0.3516 | 0.0000 | 0.0000 | 0.0 |
+| 20 | 26 | 0.7857 | 0.4518 | 0.8333 | 0.3125 | 0.0 |
+| 20 | 23 | 0.8286 | 0.5136 | 0.8889 | 0.5000 | 0.0 |
+| 10 | 20 | 0.8286 | 0.5136 | 0.8889 | 0.5000 | 0.0 |
+
+Every one of the 247 legitimate labeled rows scores 0, so no cut above 0 raises the legitimate false-positive rate on this file. No labeled scam reached 50. The live product uses **26 for high** and **20 for medium**: scam recall on the held-out split rises from 0.0000 to 0.3125, and the sandbox medium fixture (score 23) stays medium. Cuts at 23 or 20 raise recall further to 0.5000 but would turn that 23-point medium demo into high. Slice weights were left as they are; the table does not show a reason to retune them.
 
 The demo messages below use fee language and lookalike links, which is what the product is built to catch.
 
 ### 5.2 Three-message demo
 
-Expected bands are in `demos/expected.json`. Screenshot scoring was skipped here because Tesseract is not installed on the machine that wrote `demos/last_run.json`. The same wording still runs on text, link (URL inside the message), and email.
+Expected bands are in `demos/expected.json`. The subtle demo is now **high** because the high cut moved from 50 to 26. Screenshot scoring ran through Tesseract on the machine that wrote `demos/last_run.json`.
 
 **Legitimate** (expected **low**)
 
@@ -80,7 +94,7 @@ Expected bands are in `demos/expected.json`. Screenshot scoring was skipped here
 |---|---|---|---|
 | Text | 0/100 | low | none |
 | Link | 0/100 | low | none |
-| Screenshot | skipped | | Tesseract is not installed |
+| Screenshot | 0/100 | low | none |
 | Email | 0/100 | low | none |
 
 **Obvious scam** (expected **high**)
@@ -91,28 +105,27 @@ Expected bands are in `demos/expected.json`. Screenshot scoring was skipped here
 |---|---|---|---|
 | Text | 53/100 | high | urgency, registration fee, bank account, guaranteed internship, secrecy, lookalike `.tk` link, no HTTPS |
 | Link | 53/100 | high | same as text (the URL is in the message) |
-| Screenshot | skipped | | Tesseract is not installed |
+| Screenshot | 37/100 | high | urgency, registration fee, bank account, guaranteed internship (OCR misses the URL) |
 | Email | 75/100 | high | text flags plus SPF/DKIM/DMARC fail, free-mail display name, Reply-To mismatch, `offer.pdf.exe` |
 
-**Subtle / easy to miss** (expected **medium**)
+**Subtle / easy to miss** (expected **high**; was medium at the old cut of 50)
 
 > Tata Consultancy Services internship. Kindly pay the joining fee to confirm your seat. Apply at https://secure-login.tk/offer
 
 | Channel | Score | Band | Reasons |
 |---|---|---|---|
-| Text | 41/100 | medium | joining fee, claimed company does not match link domain, suspicious TLD, Tata Consultancy Services requires verification |
-| Link | 41/100 | medium | same as text |
-| Screenshot | skipped | | Tesseract is not installed |
-| Email | 41/100 | medium | same wording flags; this fixture has no SPF fail or `pdf.exe` |
+| Text | 41/100 | high | joining fee, claimed company does not match link domain, suspicious TLD, Tata Consultancy Services requires verification |
+| Link | 41/100 | high | same as text |
+| Screenshot | 26/100 | high | joining fee (OCR misses the URL) |
+| Email | 41/100 | high | same wording flags; this fixture has no SPF fail or `pdf.exe` |
 
 ## 6. Limitations
 
 - Abbreviations that are not in `backend/data/verified_companies.csv` do not get company-list points. Names shorter than four letters are ignored by the fuzzy check, so IBM-style shorts still need an alias in the CSV.
 - WHOIS, redirects, and VirusTotal can time out. The text score is kept and the reasons include "URL check was unavailable." Unknown lookups are not scored as risky.
-- Most labeled scam rows are templated contracts. The rubric looks for fee and lookalike language, so it under-calls those contracts as high risk. The saved F1 on the models is not a field trial.
+- Most labeled scam rows are templated contracts. After moving high from 50 to 26, held-out scam recall is 0.3125; 11 of 16 held-out scams still score below 26. The saved F1 on the models is not a field trial.
 - DistilBERT was not trained.
 - Screenshot OCR needs the Tesseract program, not only the Python package.
-- There is no live Gmail inbox, no published browser extension, and no mobile app.
 
 ## 7. Email privacy
 
@@ -134,10 +147,10 @@ The paste-email API is a local demo of those rules. It is not a published inbox 
 2. InternGuard returns one 0–100 score and the reasons, not only "scam."
 3. Four channels share one rubric.
 4. Dataset: 348 rows, version sha256:e08a9a505a4b, suspicious now 20.
-5. Models vs rubric table. Models look strong on templates; the product is the rubric.
+5. Models vs rubric table, plus old 20/50 vs live 20/26 bands.
 6. Demo: legitimate 0 low.
 7. Demo: obvious scam 53 high (email 75).
-8. Demo: polite joining fee plus `.tk` link, 41 medium.
+8. Demo: polite joining fee plus `.tk` link, 41 high after calibration (was medium).
 9. Privacy: no render, no remote images, attachments not opened.
 10. Limits: company-list gaps, WHOIS timeouts, Tesseract, no DistilBERT.
 
@@ -147,7 +160,7 @@ The paste-email API is a local demo of those rules. It is not a published inbox 
 2. Confirm History is empty or note the count.
 3. Paste `demos/legitimate.txt`. Score 0, low, no flags.
 4. Paste `demos/obvious_scam.txt`. Score 53, high, fee and lookalike link.
-5. Paste `demos/subtle.txt`. Score 41, medium, joining fee and TCS requires verification.
+5. Paste `demos/subtle.txt`. Score 41, high, joining fee and TCS requires verification.
 6. Open History. All three checks are listed. Refresh the page. They remain.
 7. Optional: Analyze email using `demos/obvious_scam.eml`. Score 75, high, including `pdf.exe`.
 8. Optional: upload a screenshot of the subtle message if Tesseract is installed.

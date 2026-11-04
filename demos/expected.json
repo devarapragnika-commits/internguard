@@ -8,7 +8,8 @@
     "text": "Congratulations, you are selected. Pay the registration fee today only. Guaranteed internship. Do not share this. Send your bank account number. Act now. Apply at http://microsoft.secure-login.tk/offer"
   },
   "subtle": {
-    "expected_band": "medium",
-    "text": "Tata Consultancy Services internship. Kindly pay the joining fee to confirm your seat. Apply at https://secure-login.tk/offer"
+    "expected_band": "high",
+    "text": "Tata Consultancy Services internship. Kindly pay the joining fee to confirm your seat. Apply at https://secure-login.tk/offer",
+    "reason": "High cut moved from 50 to 26 after calibration on data/messages.csv. Labeled scams never reached 50; this joining-fee plus lookalike link scores 41."
   }
 }

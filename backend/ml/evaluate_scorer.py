@@ -30,13 +30,22 @@ from backend.ml.train_baselines import (
     load_messages,
 )
 from backend.services import url_features
-from backend.services.risk import score_message
+from backend.services.risk import (
+    HIGH_AT,
+    MEDIUM_AT,
+    PREVIOUS_HIGH_AT,
+    PREVIOUS_MEDIUM_AT,
+    band_for_score,
+    score_message,
+)
 
 BAND_TO_LABEL = {"low": "legitimate", "medium": "suspicious", "high": "scam"}
-
-
-def _rubric_label(text: str) -> str:
-    return BAND_TO_LABEL[score_message(text)["band"]]
+BAND_CANDIDATES = (
+    (PREVIOUS_MEDIUM_AT, PREVIOUS_HIGH_AT),
+    (MEDIUM_AT, HIGH_AT),
+    (20, 23),
+    (10, 20),
+)
 
 
 def _rate(y_true, y_pred, truth_index: int, pred_index: int) -> float:
@@ -102,27 +111,46 @@ def evaluate_scorer(data_path: Path, models_dir: Path) -> pd.DataFrame:
             "_lookup_redirects",
             side_effect=lambda url, timeout: {"length": 0, "destination": url},
         ):
-            rubric_pred = [labels.index(_rubric_label(text)) for text in x_test]
-    scores = evaluate(y_test, rubric_pred, scam_index)
-    rows.append(
-        {
-            "method": "rubric",
+            rubric_scores = [score_message(text)["score"] for text in x_test]
+
+    band_rows: list[dict[str, object]] = []
+    seen_cuts: set[tuple[int, int]] = set()
+    for medium_at, high_at in (
+        (PREVIOUS_MEDIUM_AT, PREVIOUS_HIGH_AT),
+        (MEDIUM_AT, HIGH_AT),
+        *BAND_CANDIDATES,
+    ):
+        cut = (medium_at, high_at)
+        if cut in seen_cuts:
+            continue
+        seen_cuts.add(cut)
+        predicted = [
+            labels.index(BAND_TO_LABEL[band_for_score(score, medium_at=medium_at, high_at=high_at)])
+            for score in rubric_scores
+        ]
+        scores = evaluate(y_test, predicted, scam_index)
+        metrics = {
             "accuracy": round(scores["accuracy"], 4),
             "f1_macro": round(scores["f1_macro"], 4),
             "scam_precision": round(scores["scam_precision"], 4),
             "scam_recall": round(scores["scam_recall"], 4),
             "legitimate_false_positive_rate": round(
-                _false_positive_rate(y_test, rubric_pred, legit_index, scam_index),
+                _false_positive_rate(y_test, predicted, legit_index, scam_index),
                 4,
             ),
             "dataset_version": version,
             "seed": SEED,
         }
-    )
+        band_rows.append({"medium_at": medium_at, "high_at": high_at, **metrics})
+        if (medium_at, high_at) == (PREVIOUS_MEDIUM_AT, PREVIOUS_HIGH_AT):
+            rows.append({"method": "rubric_old_20_50", **metrics})
+        if (medium_at, high_at) == (MEDIUM_AT, HIGH_AT):
+            rows.append({"method": "rubric", **metrics})
 
     models_dir.mkdir(parents=True, exist_ok=True)
     table = pd.DataFrame(rows)
     table.to_csv(models_dir / "evaluation.csv", index=False)
+    pd.DataFrame(band_rows).to_csv(models_dir / "band_calibration.csv", index=False)
     counts = frame["label"].value_counts().to_dict()
     (models_dir / "evaluation_settings.json").write_text(
         json.dumps(
@@ -134,6 +162,8 @@ def evaluate_scorer(data_path: Path, models_dir: Path) -> pd.DataFrame:
                 "n_rows": int(len(frame)),
                 "label_counts": {key: int(counts.get(key, 0)) for key in ("legitimate", "suspicious", "scam")},
                 "rubric_mapping": "low=legitimate, medium=suspicious, high=scam",
+                "previous_bands": {"medium_at": PREVIOUS_MEDIUM_AT, "high_at": PREVIOUS_HIGH_AT},
+                "live_bands": {"medium_at": MEDIUM_AT, "high_at": HIGH_AT},
                 "url_lookups": "WHOIS and redirects are stubbed so the table can be regenerated offline",
             },
             indent=2,

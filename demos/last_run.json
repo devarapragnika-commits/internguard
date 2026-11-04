@@ -19,8 +19,11 @@
           "recommendation": "Proceed with normal caution."
         },
         "screenshot": {
-          "status": "skipped",
-          "detail": "Tesseract is not installed, so this image could not be read."
+          "score": 0,
+          "band": "low",
+          "reasons": [],
+          "recommendation": "Proceed with normal caution.",
+          "status": "ok"
         },
         "email": {
           "score": 0,
@@ -67,8 +70,17 @@
           "recommendation": "Do not pay. Verify the sender through the official company channel."
         },
         "screenshot": {
-          "status": "skipped",
-          "detail": "Tesseract is not installed, so this image could not be read."
+          "score": 37,
+          "band": "high",
+          "reasons": [
+            "Uses urgency language: \"today only\", \"act now\".",
+            "Asks for a fee, deposit, or payment before joining: \"registration fee\".",
+            "Requests credentials or personal data: \"bank account\".",
+            "Makes an unrealistic claim: \"guaranteed internship\".",
+            "Asks for a registration fee."
+          ],
+          "recommendation": "Do not pay. Verify the sender through the official company channel.",
+          "status": "ok"
         },
         "email": {
           "score": 75,
@@ -102,7 +114,7 @@
       "channels": {
         "text": {
           "score": 41,
-          "band": "medium",
+          "band": "high",
           "reasons": [
             "Asks for a fee, deposit, or payment before joining: \"joining fee\".",
             "Asks for a joining fee.",
@@ -114,7 +126,7 @@
         },
         "link": {
           "score": 41,
-          "band": "medium",
+          "band": "high",
           "reasons": [
             "Asks for a fee, deposit, or payment before joining: \"joining fee\".",
             "Asks for a joining fee.",
@@ -125,12 +137,18 @@
           "recommendation": "Do not pay. Verify the sender through the official company channel."
         },
         "screenshot": {
-          "status": "skipped",
-          "detail": "Tesseract is not installed, so this image could not be read."
+          "score": 26,
+          "band": "high",
+          "reasons": [
+            "Asks for a fee, deposit, or payment before joining: \"joining fee\".",
+            "Asks for a joining fee."
+          ],
+          "recommendation": "Do not pay. Verify the sender through the official company channel.",
+          "status": "ok"
         },
         "email": {
           "score": 41,
-          "band": "medium",
+          "band": "high",
           "reasons": [
             "Asks for a fee, deposit, or payment before joining: \"joining fee\".",
             "Asks for a joining fee.",
