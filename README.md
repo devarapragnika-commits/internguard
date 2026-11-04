@@ -1,6 +1,29 @@
 # InternGuard
 
-InternGuard scores job, internship, and email messages for scam risk. The Analyze page accepts pasted text, a screenshot, and a raw email. Each call returns one 0–100 score, a band, the reasons, and a recommendation. The Demo inbox page lists fixture messages with a low, medium, or high badge before a row is opened.
+InternGuard scores job, internship, and email messages for scam risk. The Analyze page accepts pasted text, a screenshot, and a raw email. Each call returns one 0–100 score, a band, the reasons, and a recommendation. The Demo inbox page lists fixture messages with a low, medium, or high badge before a row is opened. The Chrome extension badges Gmail list rows from metadata already on the page, and can score a LinkedIn or Indeed listing the user already opened.
+
+## One-command start
+
+From the repo root, with Docker installed:
+
+```powershell
+docker compose up --build
+```
+
+Open [http://localhost:5173](http://localhost:5173). The API is at [http://127.0.0.1:8000](http://127.0.0.1:8000). The API image includes Tesseract, so screenshot upload works without a separate install. Analyze routes return HTTP 429 with a clear message if one client sends too many requests.
+
+## Settings
+
+| Setting | Where | Default | Purpose |
+| --- | --- | --- | --- |
+| `VITE_API_BASE` | `frontend/.env` or the frontend Docker build arg | `http://127.0.0.1:8000` | API address used by the Analyze page |
+| `CORS_ORIGINS` | `.env` or the API container | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated origins allowed to call the API |
+| `ANALYZE_RATE_LIMIT` | `.env` or the API container | `30` | Analyze requests allowed per client in the window |
+| `ANALYZE_RATE_WINDOW` | `.env` or the API container | `60` | Rate-limit window in seconds |
+| `URL_CACHE_TTL` | `.env` or the API container | `3600` | Seconds to reuse WHOIS and redirect results for a domain. `0` turns the cache off |
+| `TESSERACT_CMD` | `.env` or the API container | auto-detect | Path to the Tesseract program |
+
+Copy `.env.example` to `.env` and `frontend/.env.example` to `frontend/.env` to change local values. Do not commit `.env`.
 
 ## Requirements
 
@@ -48,7 +71,7 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). Paste a message and choose Analyze, upload a screenshot, or paste a raw email. Choose Demo inbox (`#inbox`) to see pre-open badges on sandbox messages. The page shows a 0–100 gauge, points by slice, the reasons, and a recommendation when the API on port 8000 is running. If the API is running, the page also shows "API connected".
+Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). The page reads the API address from `VITE_API_BASE`, defaulting to `http://127.0.0.1:8000`. Paste a message and choose Analyze, upload a screenshot, or paste a raw email. Choose Demo inbox (`#inbox`) to see pre-open badges on sandbox messages. The page shows a 0–100 gauge, points by slice, the reasons, and a recommendation when the API on port 8000 is running. If the API is running, the page also shows "API connected".
 
 History is a second tab on the same page (`#history`). Each successful text, screenshot, or email check is saved in this browser only: score, band, reasons, recommendation, slices, and a short excerpt. The full message, screenshots, and raw emails are not stored. Refreshing the page keeps the list. An API failure shows an error and does not wipe history. An empty list shows a first-use message.
 
@@ -97,7 +120,9 @@ Do not commit `.env`. `.env.example` contains names only, with a placeholder key
 
 ## URL features
 
-`extract_url_features` in `backend/services/url_features.py` checks a link on the server. The React page does not open it.
+`extract_url_features` in `backend/services/url_features.py` checks a link on the server. The React page does not open it. WHOIS, the redirect check, and VirusTotal for one link run at the same time. Links in one message are also checked at the same time. All of those checks share a 5-second limit (`URL_MESSAGE_TIMEOUT` in `backend/services/risk.py`). A link that is not finished in time counts as "URL check was unavailable." The text score is kept.
+
+WHOIS and redirect results are cached by registrable domain for `URL_CACHE_TTL` seconds, so a later message with the same domain does not look them up again.
 
 HTTPS, the suspicious-TLD check, and the subdomain count are computed locally. Edit `backend/data/suspicious_tlds.txt` to change which top-level domains count as suspicious. One domain per line.
 
@@ -159,7 +184,21 @@ If the headers cannot be read, the text score is kept and the reasons include "S
 
 `GET /inbox` scores three local fixture messages from headers, a snippet, and attachment filenames. It does not open a Gmail account, fetch a message body, or load remote images. Each row already has a band from `score_message` (0–19 low, 20–49 medium, 50–100 high). Opening a row shows the same score, reasons, and recommendation under that row.
 
-The Demo inbox tab on the React page lists those rows. A Chrome Manifest V3 extension in `extension/` shows the same sandbox list. It requests no send or modify scopes. Load it unpacked from `extension/` in `chrome://extensions` with Developer mode on. The API on port 8000 must be running.
+The Demo inbox tab on the React page lists those rows. A Chrome Manifest V3 extension in `extension/` still shows that sandbox list when no Gmail account is signed in. It requests no send or modify scopes. Load it unpacked from `extension/` in `chrome://extensions` with Developer mode on. The API on port 8000 must be running.
+
+## Gmail list badges
+
+On `https://mail.google.com/*`, the same extension reads subject, sender, and snippet from the list DOM and calls `POST /analyze/list`. That route scores many rows in one request from list metadata only. It does not open a Gmail account, fetch a full message body, or load remote images. There is no Gmail OAuth send or modify scope.
+
+The badge uses the same bands as `score_message` (0–19 low, 20–49 medium, 50–100 high). Clicking the badge shows the score and reasons without opening the thread. Opening that row in the extension popup shows the same score and reasons.
+
+Use a throwaway test Gmail, never a personal inbox. The fixture sandbox in Demo inbox and in the popup still runs with no Gmail account.
+
+## LinkedIn and job-board listings
+
+Click the extension icon on an open LinkedIn job, LinkedIn message, or Indeed listing. The extension reads the visible text already on the page and POSTs it to `/analyze/text`. The popup shows the same score, reasons, and recommendation as pasting that text on the Analyze page. The listing is not stored, and the extension does not scrape pages the user has not opened.
+
+Automated tests use local LinkedIn-style and Indeed-style HTML fixtures. They do not need a LinkedIn, Indeed, or Gmail account. The Analyze page is unchanged.
 
 ## Screenshots
 

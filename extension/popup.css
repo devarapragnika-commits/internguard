@@ -31,12 +31,32 @@ h1 {
   color: #475569;
 }
 
-#list {
+#gmail-heading,
+#sandbox-heading,
+#listing-heading {
+  margin: 12px 16px 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+#list,
+#gmail-list {
   margin: 0;
   padding: 0;
   list-style: none;
   border-top: 1px solid #e2e8f0;
   background: #fff;
+}
+
+#gmail-list:empty {
+  display: none;
+}
+
+#listing-result .detail {
+  border-top: 1px solid #e2e8f0;
 }
 
 .row {

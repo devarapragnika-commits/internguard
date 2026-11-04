@@ -2,6 +2,7 @@
 
 import os
 import tempfile
+import time
 import unittest
 from datetime import datetime
 from pathlib import Path
@@ -16,6 +17,7 @@ SUSPICIOUS = "http://paypal.com.secure-login.tk/offer"
 
 class UrlFeatureTests(unittest.TestCase):
     def setUp(self):
+        url_features.clear_lookup_cache()
         self.whois_patch = patch.object(
             url_features,
             "_lookup_whois",
@@ -194,6 +196,46 @@ class UrlFeatureTests(unittest.TestCase):
         self.assertEqual(features["virustotal"]["status"], "ok")
         self.assertEqual(features["virustotal"]["malicious"], 4)
         self.assertEqual(features["virustotal"]["suspicious"], 1)
+
+    def test_cached_domain_is_not_looked_up_twice(self):
+        whois_calls: list[str] = []
+        redirect_calls: list[str] = []
+
+        def whois(domain, timeout):
+            whois_calls.append(domain)
+            return datetime(2018, 1, 15)
+
+        def redirects(url, timeout):
+            redirect_calls.append(url)
+            return {"length": 0, "destination": url}
+
+        url_features.clear_lookup_cache()
+        with patch.object(url_features, "_lookup_whois", whois):
+            with patch.object(url_features, "_lookup_redirects", redirects):
+                first = extract_url_features("https://whois-cache-one.com/one")
+                second = extract_url_features("https://whois-cache-one.com/two")
+        self.assertEqual(whois_calls, ["whois-cache-one.com"])
+        self.assertEqual(redirect_calls, ["https://whois-cache-one.com/one"])
+        self.assertEqual(first["domain_age"]["created"], second["domain_age"]["created"])
+        self.assertEqual(first["redirects"]["length"], second["redirects"]["length"])
+
+    def test_whois_and_redirects_run_at_the_same_time(self):
+        def slow_whois(domain, timeout):
+            time.sleep(0.35)
+            return datetime(2018, 1, 15)
+
+        def slow_redirects(url, timeout):
+            time.sleep(0.35)
+            return {"length": 0, "destination": url}
+
+        with patch.object(url_features, "_lookup_whois", slow_whois):
+            with patch.object(url_features, "_lookup_redirects", slow_redirects):
+                started = time.perf_counter()
+                features = extract_url_features(NORMAL)
+                elapsed = time.perf_counter() - started
+        self.assertEqual(features["domain_age"]["status"], "ok")
+        self.assertEqual(features["redirects"]["status"], "ok")
+        self.assertLess(elapsed, 0.6)
 
 
 if __name__ == "__main__":

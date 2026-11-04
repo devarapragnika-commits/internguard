@@ -5,12 +5,21 @@ import ResultView from './components/ResultView.jsx'
 import Inbox from './Inbox'
 import { addEntry, clearHistory, createEntry, isHistoryKey, loadHistory } from './history.js'
 
-const API_BASE = 'http://127.0.0.1:8000'
+const API_BASE = (import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000').replace(/\/$/, '')
 const TABS = ['analyze', 'inbox', 'history']
 
 function tabFromHash() {
   const tab = window.location.hash.replace('#', '')
   return TABS.includes(tab) ? tab : 'analyze'
+}
+
+function noticeFromResponse(response, data, fallback = 'Analysis failed') {
+  if (response.status === 429) {
+    return typeof data.detail === 'string'
+      ? data.detail
+      : 'Too many analysis requests. Wait a minute and try again.'
+  }
+  return typeof data.detail === 'string' ? data.detail : fallback
 }
 
 function App() {
@@ -98,7 +107,7 @@ function App() {
       })
       const data = await response.json()
       if (!response.ok) {
-        setNotice(typeof data.detail === 'string' ? data.detail : 'Analysis failed')
+        setNotice(noticeFromResponse(response, data))
         return
       }
       remember(data, 'text', text)
@@ -140,7 +149,7 @@ function App() {
       })
       const data = await response.json()
       if (!response.ok) {
-        setNotice(typeof data.detail === 'string' ? data.detail : 'Analysis failed')
+        setNotice(noticeFromResponse(response, data))
         return
       }
       remember(data, 'screenshot', data.text || imageFile.name)
@@ -174,9 +183,7 @@ function App() {
         setNotice(
           response.status === 404
             ? 'Restart the API so the email route is loaded, then try again.'
-            : typeof data.detail === 'string'
-              ? data.detail
-              : 'Analysis failed',
+            : noticeFromResponse(response, data),
         )
         return
       }

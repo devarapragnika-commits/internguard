@@ -14,6 +14,11 @@ These lookups can be unknown instead of raising:
 
 The redirect check sends HEAD requests and does not download the page. It
 follows at most five redirects.
+
+WHOIS, the redirect check, and VirusTotal run at the same time for one link.
+WHOIS and redirect results are cached by registrable domain for
+``LOOKUP_CACHE_TTL`` seconds so a later message with the same domain does
+not look them up again. Timed-out lookups are not cached.
 """
 
 from __future__ import annotations
@@ -25,6 +30,8 @@ import re
 import socket
 import ssl
 import threading
+import time
+from concurrent.futures import ThreadPoolExecutor
 
 import certifi
 from datetime import date, datetime
@@ -47,6 +54,11 @@ _MAX_URL_LENGTH = 2048
 _USER_AGENT = "InternGuard-URL-Check"
 _VT_HOST = "www.virustotal.com"
 _SSL_CONTEXT = ssl.create_default_context(cafile=certifi.where())
+LOOKUP_CACHE_TTL = 3600.0
+_MISSING = object()
+_cache_lock = threading.Lock()
+_whois_cache: dict[str, tuple[float, object]] = {}
+_redirect_cache: dict[str, tuple[float, object]] = {}
 
 
 class FlagFeature(TypedDict):
@@ -100,6 +112,13 @@ class FeatureLookupError(Exception):
         self.error = error
 
 
+def clear_lookup_cache() -> None:
+    """Drop cached WHOIS and redirect results. Used by tests."""
+    with _cache_lock:
+        _whois_cache.clear()
+        _redirect_cache.clear()
+
+
 def extract_url_features(
     url: str | None,
     *,
@@ -109,20 +128,29 @@ def extract_url_features(
     """Return URL features for one link.
 
     ``timeout`` is the per-lookup limit in seconds for WHOIS, redirects, and
-    VirusTotal. A timed-out lookup sets that feature's status to ``unknown``.
+    VirusTotal. Those three run at the same time. A timed-out lookup sets
+    that feature's status to ``unknown``.
     """
     raw = _as_text(url).strip()
     parsed = _parse_url(raw)
     extracted = _EXTRACTOR(raw)
     domain = _registered_domain(extracted.top_domain_under_public_suffix)
+    limit = max(0.0, float(timeout))
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        age_future = pool.submit(_domain_age, domain, limit)
+        redirect_future = pool.submit(_redirects, raw, limit)
+        vt_future = pool.submit(_virustotal, domain, limit)
+        domain_age = age_future.result()
+        redirects = redirect_future.result()
+        virustotal = vt_future.result()
     return {
         "registered_domain": domain,
         "https": {"value": parsed.scheme.lower() == "https"},
         "suspicious_tld": _suspicious_tld(extracted.suffix, tld_path or _TLD_PATH),
         "subdomain_count": _subdomain_count(extracted.subdomain),
-        "domain_age": _domain_age(domain, timeout),
-        "redirects": _redirects(raw, timeout),
-        "virustotal": _virustotal(domain, timeout),
+        "domain_age": domain_age,
+        "redirects": redirects,
+        "virustotal": virustotal,
     }
 
 
@@ -179,14 +207,21 @@ def _subdomain_count(subdomain: str) -> SubdomainFeature:
 def _domain_age(domain: str, timeout: float) -> DomainAgeFeature:
     if not domain:
         return _unknown_age("no domain")
-    try:
-        created = _run_with_timeout(lambda: _lookup_whois(domain, timeout), timeout)
-    except TimeoutError:
+    if timeout <= 0:
         return _unknown_age("timed out")
-    except FeatureLookupError as exc:
-        return _unknown_age(exc.error)
-    except Exception:
-        return _unknown_age("lookup failed")
+    cached = _cache_get(_whois_cache, domain)
+    if cached is not _MISSING:
+        created = cached
+    else:
+        try:
+            created = _run_with_timeout(lambda: _lookup_whois(domain, timeout), timeout)
+        except TimeoutError:
+            return _unknown_age("timed out")
+        except FeatureLookupError as exc:
+            return _unknown_age(exc.error)
+        except Exception:
+            return _unknown_age("lookup failed")
+        _cache_set(_whois_cache, domain, created)
     when = _coerce_date(created)
     if when is None:
         return _unknown_age("creation date missing")
@@ -229,14 +264,23 @@ def _redirects(url: str, timeout: float) -> RedirectFeature:
         return _unknown_redirects("unsupported URL")
     if len(url) > _MAX_URL_LENGTH:
         return _unknown_redirects("unsupported URL")
-    try:
-        found = _run_with_timeout(lambda: _lookup_redirects(url, timeout), timeout)
-    except TimeoutError:
+    if timeout <= 0:
         return _unknown_redirects("timed out")
-    except FeatureLookupError as exc:
-        return _unknown_redirects(exc.error)
-    except Exception:
-        return _unknown_redirects("lookup failed")
+    domain = _registered_domain(_EXTRACTOR(url).top_domain_under_public_suffix)
+    cache_key = domain or url
+    cached = _cache_get(_redirect_cache, cache_key)
+    if cached is not _MISSING:
+        found = cached
+    else:
+        try:
+            found = _run_with_timeout(lambda: _lookup_redirects(url, timeout), timeout)
+        except TimeoutError:
+            return _unknown_redirects("timed out")
+        except FeatureLookupError as exc:
+            return _unknown_redirects(exc.error)
+        except Exception:
+            return _unknown_redirects("lookup failed")
+        _cache_set(_redirect_cache, cache_key, found)
     return {
         "status": "ok",
         "length": found["length"],
@@ -331,6 +375,8 @@ def _virustotal(domain: str, timeout: float) -> VirusTotalFeature:
     api_key = os.environ.get("VIRUSTOTAL_API_KEY", "").strip()
     if not api_key or any(character.isspace() for character in api_key):
         return _vt_off()
+    if timeout <= 0:
+        return _unknown_vt("timed out")
     if not domain:
         return _unknown_vt("no domain")
     try:
@@ -385,6 +431,37 @@ def _vt_off() -> VirusTotalFeature:
 
 def _unknown_vt(error: str) -> VirusTotalFeature:
     return {"status": "unknown", "malicious": None, "suspicious": None, "error": error}
+
+
+def _cache_ttl() -> float:
+    raw = os.environ.get("URL_CACHE_TTL", "").strip()
+    if raw:
+        try:
+            return max(0.0, float(raw))
+        except ValueError:
+            pass
+    return LOOKUP_CACHE_TTL
+
+
+def _cache_get(store: dict[str, tuple[float, object]], key: str):
+    now = time.monotonic()
+    with _cache_lock:
+        item = store.get(key)
+        if item is None:
+            return _MISSING
+        expires, value = item
+        if now > expires:
+            del store[key]
+            return _MISSING
+        return value
+
+
+def _cache_set(store: dict[str, tuple[float, object]], key: str, value) -> None:
+    ttl = _cache_ttl()
+    if ttl <= 0:
+        return
+    with _cache_lock:
+        store[key] = (time.monotonic() + ttl, value)
 
 
 def _run_with_timeout(fn, timeout: float):
