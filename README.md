@@ -167,6 +167,14 @@ The Demo inbox tab on the React page lists those rows. A Chrome Manifest V3 exte
 
 An empty file, a non-image, or a failed read returns a clear error and no score. Tests do not call Tesseract or a paid API.
 
+## Hindi and mixed-language messages
+
+Linguistic and payment checks keep Devanagari text and also match common Roman Hindi spelling. `score_message` is still the only scorer. There is no translation API.
+
+A Hindi or mixed fee line such as `Kindly pay the registration fee भेजो` uses the same 25-point financial slice as the English registration-fee fixture. Urgency, secrecy, and OTP/UPI asks have Hindi and Hinglish phrases too. `कोई रजिस्ट्रेशन फीस नहीं है` stays at 0, like "no registration fee".
+
+Paste Hindi or mixed text on the Analyze page the same way as English. The UI stays in English.
+
 ## Payment requests
 
-`detect_payment_request` in `backend/services/payment.py` scores only the financial-request slice. A fee, deposit, gift card, crypto payment, or a demand to pay for an offer letter or laptop sets that score to 25. A message with no payment demand leaves it at 0. "No registration fee" does not count.
+`detect_payment_request` in `backend/services/payment.py` scores only the financial-request slice. A fee, deposit, gift card, crypto payment, or a demand to pay for an offer letter or laptop sets that score to 25. A message with no payment demand leaves it at 0. "No registration fee" does not count. Hindi fee wording such as रजिस्ट्रेशन फीस is scored the same way.

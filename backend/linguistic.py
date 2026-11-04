@@ -57,6 +57,15 @@ _RULES: dict[str, list[_Rule]] = {
         (re.compile(r"\bwithin 24 hours\b"), "within 24 hours"),
         (re.compile(r"\bwithin 48 hours\b"), "within 48 hours"),
         (re.compile(r"\bhurry\b"), "hurry"),
+        (re.compile(r"\babhi (?:apply|join|karo|karke|bhejo)\b"), "abhi"),
+        (re.compile(r"\bjaldi\b"), "jaldi"),
+        (re.compile(r"\bturant\b"), "turant"),
+        (re.compile(r"\bfauran\b"), "fauran"),
+        (re.compile(r"अभी"), "अभी"),
+        (re.compile(r"जल्दी"), "जल्दी"),
+        (re.compile(r"तुरंत"), "तुरंत"),
+        (re.compile(r"फौरन"), "फौरन"),
+        (re.compile(r"आज ही"), "आज ही"),
     ],
     "financial_pressure": [
         (re.compile(r"\bregistration fees?\b"), "registration fee"),
@@ -72,6 +81,15 @@ _RULES: dict[str, list[_Rule]] = {
         (re.compile(r"\bpay (?:a |the )?(?:fees?|deposits?)\b"), None),
         (re.compile(r"\bfees?\b"), None),
         (re.compile(r"\bdeposits?\b"), None),
+        (re.compile(r"\bfees?\s+(?:bhejo|bhejna|bharo|bharni|do|dena)\b"), "fee"),
+        (re.compile(r"रजिस्ट्रेशन\s*फीस"), "registration fee"),
+        (re.compile(r"पंजीकरण\s*शुल्क"), "registration fee"),
+        (re.compile(r"ज्वाइनिंग\s*फीस"), "joining fee"),
+        (re.compile(r"जॉइनिंग\s*फीस"), "joining fee"),
+        (re.compile(r"ट्रेनिंग\s*फीस"), "training fee"),
+        (re.compile(r"आवेदन\s*शुल्क"), "application fee"),
+        (re.compile(r"फीस"), "fee"),
+        (re.compile(r"शुल्क"), "fee"),
     ],
     "credential_request": [
         (re.compile(r"\bbank account(?: number| details)?\b"), "bank account"),
@@ -87,6 +105,10 @@ _RULES: dict[str, list[_Rule]] = {
         (re.compile(r"\bcvv\b"), "CVV"),
         (re.compile(r"\b(?:credit|debit) card\b"), None),
         (re.compile(r"\bupi (?:pin|id|number)\b"), None),
+        (re.compile(r"\bupi\s+(?:bhejo|bhejna|do|dena|share karo)\b"), "UPI"),
+        (re.compile(r"\b(?:bhejo|bhejna|do)\s+(?:the\s+)?upi\b"), "UPI"),
+        (re.compile(r"ओटीपी"), "OTP"),
+        (re.compile(r"यूपीआई(?:\s*(?:पिन|आईडी|id|pin))?"), "UPI"),
         (re.compile(r"\blogin (?:credentials|details|password)\b"), None),
         (re.compile(r"\bmother'?s maiden name\b"), "mother's maiden name"),
         (re.compile(r"\bkyc\b"), "KYC"),
@@ -108,12 +130,19 @@ _RULES: dict[str, list[_Rule]] = {
         (re.compile(r"\bdon'?t share this\b"), "don't share this"),
         (re.compile(r"\btell no one\b"), "tell no one"),
         (re.compile(r"\bbetween us only\b"), "between us only"),
+        (re.compile(r"\bkisi ko mat bata(?:na|o|ana)?\b"), "kisi ko mat batana"),
+        (re.compile(r"\bmat bata(?:na|o)\b"), "mat batana"),
+        (re.compile(r"\bgupt rakh(?:o|na)?\b"), "gupt rakho"),
+        (re.compile(r"किसी को मत बता(?:ना|ओ|ओगे)?"), "किसी को मत बताना"),
+        (re.compile(r"गुप्त"), "गुप्त"),
+        (re.compile(r"यह बात गुप्त"), "गुप्त"),
     ],
 }
 
 _NEGATION_BEFORE = re.compile(
-    r"\b(?:no|not|without|never|zero)\b(?:\s+\w+){0,3}\s*$"
+    r"(?:(?:\b(?:no|not|without|never|zero|nahi+|nahin|bina)\b)|नहीं|बिना)(?:\s+\w+){0,3}\s*$"
 )
+_NEGATION_AFTER = re.compile(r"^\s*(?:(?:nahi+|nahin)\b|नहीं)")
 
 _HIGH_PAY_WITH_CURRENCY = re.compile(
     r"(?P<cur>\$|₹|\busd\b|\brs\.?|\binr\b)\s*"
@@ -165,13 +194,16 @@ def _prepare(text: str) -> str:
     text = text.replace("\u2019", "'").replace("\u2018", "'")
     text = text.lower()
     text = re.sub(r"(?<=\d),(?=\d)", "", text)
-    text = re.sub(r"[^a-z0-9$%₹'./]+", " ", text)
+    text = re.sub(r"[^a-z0-9$%₹'./\u0900-\u0963\u0966-\u097f]+", " ", text)
     return re.sub(r"\s+", " ", text).strip()
 
 
-def _negated(text: str, start: int) -> bool:
+def _negated(text: str, start: int, end: int | None = None) -> bool:
     prefix = text[max(0, start - 48) : start]
-    return _NEGATION_BEFORE.search(prefix) is not None
+    if _NEGATION_BEFORE.search(prefix):
+        return True
+    suffix = text[(end if end is not None else start) : (end if end is not None else start) + 32]
+    return _NEGATION_AFTER.search(suffix) is not None
 
 
 def _rule_spans(text: str, rules: list[_Rule]) -> list[tuple[int, int, str]]:
@@ -180,7 +212,7 @@ def _rule_spans(text: str, rules: list[_Rule]) -> list[tuple[int, int, str]]:
     spans: list[tuple[int, int, str]] = []
     for pattern, label in rules:
         for match in pattern.finditer(text):
-            if _negated(text, match.start()):
+            if _negated(text, match.start(), match.end()):
                 continue
             quote = label or " ".join(match.group(0).split())
             spans.append((match.start(), match.end(), quote))
@@ -212,7 +244,7 @@ def _high_pay_spans(text: str) -> list[tuple[int, int, str]]:
     spans: list[tuple[int, int, str]] = []
     for pattern in (_HIGH_PAY_WITH_CURRENCY, _HIGH_PAY_BARE):
         for match in pattern.finditer(text):
-            if _negated(text, match.start()):
+            if _negated(text, match.start(), match.end()):
                 continue
             if not _amount_is_high(match):
                 continue
