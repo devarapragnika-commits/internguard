@@ -1,0 +1,146 @@
+{
+  "dataset_version": "sha256:e08a9a505a4b:rows:348",
+  "n_demo_messages": 3,
+  "results": [
+    {
+      "id": "legitimate",
+      "text": "Our campus internship is unpaid. Apply on the company careers page. There is no fee.",
+      "channels": {
+        "text": {
+          "score": 0,
+          "band": "low",
+          "reasons": [],
+          "recommendation": "Proceed with normal caution."
+        },
+        "link": {
+          "score": 0,
+          "band": "low",
+          "reasons": [],
+          "recommendation": "Proceed with normal caution."
+        },
+        "screenshot": {
+          "status": "skipped",
+          "detail": "Tesseract is not installed, so this image could not be read."
+        },
+        "email": {
+          "score": 0,
+          "band": "low",
+          "reasons": [],
+          "recommendation": "Proceed with normal caution."
+        }
+      }
+    },
+    {
+      "id": "obvious_scam",
+      "text": "Congratulations, you are selected. Pay the registration fee today only. Guaranteed internship. Do not share this. Send your bank account number. Act now. Apply at http://microsoft.secure-login.tk/offer",
+      "channels": {
+        "text": {
+          "score": 53,
+          "band": "high",
+          "reasons": [
+            "Uses urgency language: \"today only\", \"act now\".",
+            "Asks for a fee, deposit, or payment before joining: \"registration fee\".",
+            "Requests credentials or personal data: \"bank account\".",
+            "Makes an unrealistic claim: \"guaranteed internship\".",
+            "Asks to keep the offer secret: \"do not share this\".",
+            "Asks for a registration fee.",
+            "claimed company does not match link domain.",
+            "Link uses a suspicious top-level domain.",
+            "Link does not use HTTPS."
+          ],
+          "recommendation": "Do not pay. Verify the sender through the official company channel."
+        },
+        "link": {
+          "score": 53,
+          "band": "high",
+          "reasons": [
+            "Uses urgency language: \"today only\", \"act now\".",
+            "Asks for a fee, deposit, or payment before joining: \"registration fee\".",
+            "Requests credentials or personal data: \"bank account\".",
+            "Makes an unrealistic claim: \"guaranteed internship\".",
+            "Asks to keep the offer secret: \"do not share this\".",
+            "Asks for a registration fee.",
+            "claimed company does not match link domain.",
+            "Link uses a suspicious top-level domain.",
+            "Link does not use HTTPS."
+          ],
+          "recommendation": "Do not pay. Verify the sender through the official company channel."
+        },
+        "screenshot": {
+          "status": "skipped",
+          "detail": "Tesseract is not installed, so this image could not be read."
+        },
+        "email": {
+          "score": 75,
+          "band": "high",
+          "reasons": [
+            "Uses urgency language: \"today only\", \"act now\".",
+            "Asks for a fee, deposit, or payment before joining: \"registration fee\".",
+            "Requests credentials or personal data: \"bank account\".",
+            "Makes an unrealistic claim: \"guaranteed internship\".",
+            "Asks to keep the offer secret: \"do not share this\".",
+            "Asks for a registration fee.",
+            "claimed company does not match link domain.",
+            "Link uses a suspicious top-level domain.",
+            "Link does not use HTTPS.",
+            "Sender failed the SPF check.",
+            "Sender failed the DKIM check.",
+            "Sender failed the DMARC check.",
+            "Display name claims a company, but the address is a free mailbox.",
+            "From domain differs from the Reply-To domain.",
+            "Attachment uses a double extension such as pdf.exe.",
+            "Attachment has a dangerous file extension.",
+            "Attachment extension does not match the declared type."
+          ],
+          "recommendation": "Do not pay. Do not open attachments. Verify the sender through the official company channel."
+        }
+      }
+    },
+    {
+      "id": "subtle",
+      "text": "Tata Consultancy Services internship. Kindly pay the joining fee to confirm your seat. Apply at https://secure-login.tk/offer",
+      "channels": {
+        "text": {
+          "score": 41,
+          "band": "medium",
+          "reasons": [
+            "Asks for a fee, deposit, or payment before joining: \"joining fee\".",
+            "Asks for a joining fee.",
+            "claimed company does not match link domain.",
+            "Link uses a suspicious top-level domain.",
+            "Tata Consultancy Services requires verification."
+          ],
+          "recommendation": "Do not pay. Verify the sender through the official company channel."
+        },
+        "link": {
+          "score": 41,
+          "band": "medium",
+          "reasons": [
+            "Asks for a fee, deposit, or payment before joining: \"joining fee\".",
+            "Asks for a joining fee.",
+            "claimed company does not match link domain.",
+            "Link uses a suspicious top-level domain.",
+            "Tata Consultancy Services requires verification."
+          ],
+          "recommendation": "Do not pay. Verify the sender through the official company channel."
+        },
+        "screenshot": {
+          "status": "skipped",
+          "detail": "Tesseract is not installed, so this image could not be read."
+        },
+        "email": {
+          "score": 41,
+          "band": "medium",
+          "reasons": [
+            "Asks for a fee, deposit, or payment before joining: \"joining fee\".",
+            "Asks for a joining fee.",
+            "claimed company does not match link domain.",
+            "Link uses a suspicious top-level domain.",
+            "Tata Consultancy Services requires verification."
+          ],
+          "recommendation": "Do not pay. Verify the sender through the official company channel."
+        }
+      }
+    }
+  ]
+}

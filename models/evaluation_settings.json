@@ -1,0 +1,14 @@
+{
+  "seed": 42,
+  "test_size": 0.2,
+  "dataset_path": "data/messages.csv",
+  "dataset_version": "sha256:e08a9a505a4b:rows:348",
+  "n_rows": 348,
+  "label_counts": {
+    "legitimate": 247,
+    "suspicious": 20,
+    "scam": 81
+  },
+  "rubric_mapping": "low=legitimate, medium=suspicious, high=scam",
+  "url_lookups": "WHOIS and redirects are stubbed so the table can be regenerated offline"
+}

@@ -1,0 +1,8 @@
+From: Recruiting <jobs@careers.example.com>
+To: student@college.edu
+Reply-To: jobs@careers.example.com
+Subject: Campus internship next steps
+Authentication-Results: mx.example; spf=pass; dkim=pass; dmarc=pass
+Content-Type: text/plain; charset="utf-8"
+
+Our campus internship is unpaid. Apply on the company careers page. There is no fee.
