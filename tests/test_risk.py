@@ -1,5 +1,6 @@
 """Checks for the combined text and URL score. Network lookups are mocked."""
 
+import time
 import unittest
 from datetime import datetime, timedelta
 from unittest.mock import patch
@@ -152,3 +153,27 @@ class RiskScoreTests(unittest.TestCase):
             analyze_text(AnalyzeTextBody(text="   "))
         self.assertEqual(caught.exception.status_code, 400)
         self.assertEqual(caught.exception.detail, "Paste a message before analyzing.")
+
+    def test_five_slow_links_finish_within_the_time_limit(self):
+        def slow_whois(domain, timeout):
+            time.sleep(1)
+            return datetime(2018, 1, 15)
+
+        def slow_redirects(url, timeout):
+            time.sleep(1)
+            return {"length": 0, "destination": url}
+
+        links = " ".join(f"https://slow{index}.example.com/offer" for index in range(5))
+        text = FEE + " " + links
+        with patch.object(url_features, "_lookup_whois", slow_whois):
+            with patch.object(url_features, "_lookup_redirects", slow_redirects):
+                with patch("backend.services.risk.URL_MESSAGE_TIMEOUT", 0.4):
+                    with patch("backend.services.risk.URL_TIMEOUT", 0.4):
+                        started = time.perf_counter()
+                        result = score_message(text)
+                        elapsed = time.perf_counter() - started
+        self.assertLess(elapsed, 1.5)
+        self.assertEqual(result["slices"]["financial_request"]["points"], 25)
+        self.assertIn("registration fee", " ".join(result["reasons"]))
+        self.assertIn("URL check was unavailable.", result["reasons"])
+        self.assertIn("url_check_unavailable", result["flags"])

@@ -1,0 +1,23 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      TESSERACT_CMD: tesseract
+      ANALYZE_RATE_LIMIT: "30"
+      URL_CACHE_TTL: "3600"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE: http://127.0.0.1:8000
+    ports:
+      - "5173:80"
+    depends_on:
+      - api

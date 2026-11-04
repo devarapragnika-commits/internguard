@@ -85,3 +85,47 @@ def get_base_url() -> str:
 
 def get_model() -> str:
     return os.getenv("GPT_ASTRA_MODEL", DEFAULT_MODEL).strip() or DEFAULT_MODEL
+
+
+DEFAULT_CORS_ORIGINS = (
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+)
+CORS_ORIGIN_REGEX = r"chrome-extension://.*|http://(localhost|127\.0\.0\.1|\[::1\]):\d+"
+DEFAULT_ANALYZE_RATE_LIMIT = 30
+DEFAULT_ANALYZE_RATE_WINDOW = 60.0
+
+
+def get_cors_origins() -> list[str]:
+    """Return allowed browser origins. Comma-separated CORS_ORIGINS, or the Vite defaults."""
+    raw = os.getenv("CORS_ORIGINS", "").strip().strip('"').strip("'")
+    if not raw:
+        return list(DEFAULT_CORS_ORIGINS)
+    found: list[str] = []
+    for item in raw.split(","):
+        origin = item.strip()
+        if origin and origin not in found:
+            found.append(origin)
+    return found or list(DEFAULT_CORS_ORIGINS)
+
+
+def get_analyze_rate_limit() -> int:
+    raw = os.getenv("ANALYZE_RATE_LIMIT", "").strip()
+    if not raw:
+        return DEFAULT_ANALYZE_RATE_LIMIT
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return DEFAULT_ANALYZE_RATE_LIMIT
+
+
+def get_analyze_rate_window() -> float:
+    raw = os.getenv("ANALYZE_RATE_WINDOW", "").strip()
+    if not raw:
+        return DEFAULT_ANALYZE_RATE_WINDOW
+    try:
+        return max(1.0, float(raw))
+    except ValueError:
+        return DEFAULT_ANALYZE_RATE_WINDOW

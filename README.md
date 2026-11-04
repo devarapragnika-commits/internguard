@@ -2,6 +2,29 @@
 
 InternGuard scores job, internship, and email messages for scam risk. The Analyze page accepts pasted text, a screenshot, and a raw email. Each call returns one 0–100 score, a band, the reasons, and a recommendation. The Demo inbox page lists fixture messages with a low, medium, or high badge before a row is opened.
 
+## One-command start
+
+From the repo root, with Docker installed:
+
+```powershell
+docker compose up --build
+```
+
+Open [http://localhost:5173](http://localhost:5173). The API is at [http://127.0.0.1:8000](http://127.0.0.1:8000). The API image includes Tesseract, so screenshot upload works without a separate install. Analyze routes return HTTP 429 with a clear message if one client sends too many requests.
+
+## Settings
+
+| Setting | Where | Default | Purpose |
+| --- | --- | --- | --- |
+| `VITE_API_BASE` | `frontend/.env` or the frontend Docker build arg | `http://127.0.0.1:8000` | API address used by the Analyze page |
+| `CORS_ORIGINS` | `.env` or the API container | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated origins allowed to call the API |
+| `ANALYZE_RATE_LIMIT` | `.env` or the API container | `30` | Analyze requests allowed per client in the window |
+| `ANALYZE_RATE_WINDOW` | `.env` or the API container | `60` | Rate-limit window in seconds |
+| `URL_CACHE_TTL` | `.env` or the API container | `3600` | Seconds to reuse WHOIS and redirect results for a domain. `0` turns the cache off |
+| `TESSERACT_CMD` | `.env` or the API container | auto-detect | Path to the Tesseract program |
+
+Copy `.env.example` to `.env` and `frontend/.env.example` to `frontend/.env` to change local values. Do not commit `.env`.
+
 ## Requirements
 
 - Python 3.11 or newer
@@ -48,7 +71,7 @@ npm install
 npm run dev
 ```
 
-Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). Paste a message and choose Analyze, upload a screenshot, or paste a raw email. Choose Demo inbox (`#inbox`) to see pre-open badges on sandbox messages. The page shows a 0–100 gauge, points by slice, the reasons, and a recommendation when the API on port 8000 is running. If the API is running, the page also shows "API connected".
+Open the URL Vite prints, usually [http://localhost:5173](http://localhost:5173). The page reads the API address from `VITE_API_BASE`, defaulting to `http://127.0.0.1:8000`. Paste a message and choose Analyze, upload a screenshot, or paste a raw email. Choose Demo inbox (`#inbox`) to see pre-open badges on sandbox messages. The page shows a 0–100 gauge, points by slice, the reasons, and a recommendation when the API on port 8000 is running. If the API is running, the page also shows "API connected".
 
 History is a second tab on the same page (`#history`). Each successful text, screenshot, or email check is saved in this browser only: score, band, reasons, recommendation, slices, and a short excerpt. The full message, screenshots, and raw emails are not stored. Refreshing the page keeps the list. An API failure shows an error and does not wipe history. An empty list shows a first-use message.
 
@@ -97,7 +120,9 @@ Do not commit `.env`. `.env.example` contains names only, with a placeholder key
 
 ## URL features
 
-`extract_url_features` in `backend/services/url_features.py` checks a link on the server. The React page does not open it.
+`extract_url_features` in `backend/services/url_features.py` checks a link on the server. The React page does not open it. WHOIS, the redirect check, and VirusTotal for one link run at the same time. Links in one message are also checked at the same time. All of those checks share a 5-second limit (`URL_MESSAGE_TIMEOUT` in `backend/services/risk.py`). A link that is not finished in time counts as "URL check was unavailable." The text score is kept.
+
+WHOIS and redirect results are cached by registrable domain for `URL_CACHE_TTL` seconds, so a later message with the same domain does not look them up again.
 
 HTTPS, the suspicious-TLD check, and the subdomain count are computed locally. Edit `backend/data/suspicious_tlds.txt` to change which top-level domains count as suspicious. One domain per line.
 

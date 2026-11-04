@@ -19,11 +19,17 @@ A message with no link leaves URL risk at 0. A failed or unknown URL lookup
 does not drop the text score. That result adds the reason "URL check was
 unavailable." Unknown domain age, redirects, and VirusTotal are not scored
 as risky. VirusTotal left off because no key is set is not a failure.
+
+Links in one message are checked at the same time. ``URL_MESSAGE_TIMEOUT``
+is the limit for all of those checks. A link that is not finished in time
+counts as unavailable, and the text score is kept.
 """
 
 from __future__ import annotations
 
 import re
+import time
+from concurrent.futures import ThreadPoolExecutor, wait
 from typing import TypedDict
 
 from backend.linguistic import LINGUISTIC_SIGNALS, extract_linguistic_features
@@ -50,6 +56,7 @@ LONG_REDIRECT_LENGTH = 2
 EXTRA_SUBDOMAIN_COUNT = 2
 MAX_URLS = 5
 URL_TIMEOUT = 5.0
+URL_MESSAGE_TIMEOUT = 5.0
 
 MEDIUM_AT = 20
 HIGH_AT = 50
@@ -178,24 +185,46 @@ def _url_risk(text: str, matching: str | None = None) -> tuple[int, list[str], l
     best_reasons: list[str] = []
     best_flags: list[str] = []
     unavailable = False
-    for url in urls:
-        points, reasons, flags, failed = _one_url(wording, url)
-        if failed:
+    if not urls:
+        return best_points, best_reasons, best_flags
+
+    deadline = time.monotonic() + URL_MESSAGE_TIMEOUT
+    with ThreadPoolExecutor(max_workers=MAX_URLS) as pool:
+        futures = [pool.submit(_one_url, wording, url, deadline) for url in urls]
+        remaining = max(0.0, deadline - time.monotonic())
+        done, not_done = wait(futures, timeout=remaining)
+        for future in done:
+            try:
+                points, reasons, flags, failed = future.result()
+            except Exception:
+                points, reasons, flags, failed = 0, [], [], True
+            if failed:
+                unavailable = True
+            if points > best_points:
+                best_points = points
+                best_reasons = reasons
+                best_flags = flags
+        if not_done:
             unavailable = True
-        if points > best_points:
-            best_points = points
-            best_reasons = reasons
-            best_flags = flags
+            for future in not_done:
+                future.cancel()
     if unavailable:
         best_reasons = [*best_reasons, _UNAVAILABLE]
         best_flags = [*best_flags, "url_check_unavailable"]
     return best_points, best_reasons, best_flags
 
 
-def _one_url(text: str, url: str) -> tuple[int, list[str], list[str], bool]:
+def _one_url(
+    text: str,
+    url: str,
+    deadline: float | None = None,
+) -> tuple[int, list[str], list[str], bool]:
     failed = False
+    timeout = URL_TIMEOUT
+    if deadline is not None:
+        timeout = min(URL_TIMEOUT, max(0.0, deadline - time.monotonic()))
     try:
-        features = extract_url_features(url, timeout=URL_TIMEOUT)
+        features = extract_url_features(url, timeout=timeout)
     except Exception:
         features = None
         failed = True
