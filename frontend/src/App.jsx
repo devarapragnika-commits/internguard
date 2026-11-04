@@ -5,7 +5,10 @@ import ResultView from './components/ResultView.jsx'
 import Inbox from './Inbox'
 import { addEntry, clearHistory, createEntry, isHistoryKey, loadHistory } from './history.js'
 
-const API_BASE = (import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8000').replace(/\/$/, '')
+const API_BASE = (import.meta.env.VITE_API_BASE ?? (import.meta.env.DEV ? '' : 'http://127.0.0.1:8000')).replace(
+  /\/$/,
+  '',
+)
 const TABS = ['analyze', 'inbox', 'history']
 
 function tabFromHash() {
@@ -34,30 +37,35 @@ function App() {
   const [imageUrl, setImageUrl] = useState('')
   const [fromImage, setFromImage] = useState(false)
   const [emailSource, setEmailSource] = useState('')
+  const [pdfFile, setPdfFile] = useState(null)
+  const [fromPdf, setFromPdf] = useState(false)
 
   useEffect(() => {
     let cancelled = false
 
-    fetch(`${API_BASE}/health`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('Health check failed')
-        }
-        return response.json()
-      })
-      .then((data) => {
+    async function ping() {
+      const controller = new AbortController()
+      const timer = window.setTimeout(() => controller.abort(), 4000)
+      try {
+        const response = await fetch(`${API_BASE}/health`, { signal: controller.signal })
+        const data = await response.json()
         if (!cancelled) {
-          setApiState(data.status === 'ok' ? 'connected' : 'unavailable')
+          setApiState(response.ok && data.status === 'ok' ? 'connected' : 'unavailable')
         }
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) {
           setApiState('unavailable')
         }
-      })
+      } finally {
+        window.clearTimeout(timer)
+      }
+    }
 
+    ping()
+    const id = window.setInterval(ping, 5000)
     return () => {
       cancelled = true
+      window.clearInterval(id)
     }
   }, [])
 
@@ -99,6 +107,7 @@ function App() {
     setPending(true)
     setNotice('')
     setFromImage(false)
+    setFromPdf(false)
     try {
       const response = await fetch(`${API_BASE}/analyze/text`, {
         method: 'POST',
@@ -140,6 +149,7 @@ function App() {
     setPending(true)
     setNotice('')
     setFromImage(true)
+    setFromPdf(false)
     try {
       const body = new FormData()
       body.append('file', imageFile)
@@ -172,6 +182,7 @@ function App() {
     setPending(true)
     setNotice('')
     setFromImage(false)
+    setFromPdf(false)
     try {
       const response = await fetch(`${API_BASE}/analyze/email`, {
         method: 'POST',
@@ -190,6 +201,46 @@ function App() {
       remember(data, 'email', raw)
     } catch {
       setNotice('Could not reach the API. Start it on port 8000 and try again.')
+    } finally {
+      setPending(false)
+    }
+  }
+
+  function onPdfChoice(event) {
+    setPdfFile(event.target.files?.[0] || null)
+  }
+
+  async function onAnalyzePdf(event) {
+    event.preventDefault()
+    setResult(null)
+    if (!pdfFile) {
+      setNotice('Choose a PDF before analyzing.')
+      return
+    }
+
+    setPending(true)
+    setNotice('')
+    setFromImage(false)
+    setFromPdf(true)
+    try {
+      const body = new FormData()
+      body.append('file', pdfFile)
+      const response = await fetch(`${API_BASE}/analyze/pdf`, {
+        method: 'POST',
+        body,
+      })
+      const data = await response.json()
+      if (!response.ok) {
+        setNotice(
+          response.status === 404
+            ? 'Restart the API so the PDF route is loaded, then try again.'
+            : noticeFromResponse(response, data),
+        )
+        return
+      }
+      remember(data, 'pdf', data.text || pdfFile.name)
+    } catch {
+      setNotice('Could not reach the API. Start the API on port 8000 and try again.')
     } finally {
       setPending(false)
     }
@@ -274,8 +325,8 @@ function App() {
       ) : (
         <div className="flex flex-col gap-4">
           <p className="text-slate-600">
-            Paste a message, upload a screenshot, or paste a raw email. Each returns one risk
-            score.
+            Paste a message, upload a screenshot or PDF offer letter, or paste a raw email. Each
+            returns one risk score.
           </p>
 
           <form onSubmit={onAnalyze} className="flex flex-col gap-4">
@@ -325,6 +376,27 @@ function App() {
                 className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
               >
                 {pending ? 'Analyzing…' : 'Analyze screenshot'}
+              </button>
+            </div>
+          </form>
+
+          <form onSubmit={onAnalyzePdf} className="flex flex-col gap-4">
+            <label className="flex flex-col gap-2 text-sm font-medium text-slate-800">
+              PDF offer letter
+              <input
+                type="file"
+                accept="application/pdf,.pdf"
+                onChange={onPdfChoice}
+                className="text-sm font-normal text-slate-700 file:mr-3 file:rounded-md file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
+              />
+            </label>
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={pending}
+                className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+              >
+                {pending ? 'Analyzing…' : 'Analyze PDF'}
               </button>
             </div>
           </form>
@@ -386,6 +458,10 @@ function App() {
 
           {fromImage && result?.text ? (
             <p className="text-sm text-slate-600">Read from image: {result.text}</p>
+          ) : null}
+
+          {fromPdf && result?.text ? (
+            <p className="text-sm text-slate-600">Read from PDF: {result.text}</p>
           ) : null}
 
           {result ? <ResultView result={result} /> : null}
