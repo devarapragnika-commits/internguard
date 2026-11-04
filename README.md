@@ -1,6 +1,6 @@
 # InternGuard
 
-InternGuard scores job, internship, and email messages for scam risk. The Analyze page accepts pasted text, a screenshot, and a raw email. Each call returns one 0–100 score, a band, the reasons, and a recommendation. The Demo inbox page lists fixture messages with a low, medium, or high badge before a row is opened.
+InternGuard scores job, internship, and email messages for scam risk. The Analyze page accepts pasted text, a screenshot, and a raw email. Each call returns one 0–100 score, a band, the reasons, and a recommendation. The Demo inbox page lists fixture messages with a low, medium, or high badge before a row is opened. The Chrome extension also badges Gmail list rows from the subject, sender, and snippet already on the page.
 
 ## One-command start
 
@@ -184,7 +184,15 @@ If the headers cannot be read, the text score is kept and the reasons include "S
 
 `GET /inbox` scores three local fixture messages from headers, a snippet, and attachment filenames. It does not open a Gmail account, fetch a message body, or load remote images. Each row already has a band from `score_message` (0–19 low, 20–49 medium, 50–100 high). Opening a row shows the same score, reasons, and recommendation under that row.
 
-The Demo inbox tab on the React page lists those rows. A Chrome Manifest V3 extension in `extension/` shows the same sandbox list. It requests no send or modify scopes. Load it unpacked from `extension/` in `chrome://extensions` with Developer mode on. The API on port 8000 must be running.
+The Demo inbox tab on the React page lists those rows. A Chrome Manifest V3 extension in `extension/` still shows that sandbox list when no Gmail account is signed in. It requests no send or modify scopes. Load it unpacked from `extension/` in `chrome://extensions` with Developer mode on. The API on port 8000 must be running.
+
+## Gmail list badges
+
+On `https://mail.google.com/*`, the same extension reads subject, sender, and snippet from the list DOM and calls `POST /analyze/list`. That route scores many rows in one request from list metadata only. It does not open a Gmail account, fetch a full message body, or load remote images. There is no Gmail OAuth send or modify scope.
+
+The badge uses the same bands as `score_message` (0–19 low, 20–49 medium, 50–100 high). Clicking the badge shows the score and reasons without opening the thread. Opening that row in the extension popup shows the same score and reasons.
+
+Use a throwaway test Gmail, never a personal inbox. The fixture sandbox in Demo inbox and in the popup still runs with no Gmail account.
 
 ## Screenshots
 
