@@ -39,6 +39,7 @@ function App() {
   const [emailSource, setEmailSource] = useState('')
   const [pdfFile, setPdfFile] = useState(null)
   const [fromPdf, setFromPdf] = useState(false)
+  const [resultChannel, setResultChannel] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -93,6 +94,7 @@ function App() {
     const entry = createEntry(data, channel, source)
     setHistory(addEntry(entry))
     setResult(data)
+    setResultChannel(channel)
   }
 
   async function onAnalyze(event) {
@@ -464,7 +466,15 @@ function App() {
             <p className="text-sm text-slate-600">Read from PDF: {result.text}</p>
           ) : null}
 
-          {result ? <ResultView result={result} /> : null}
+          {result ? (
+            <ResultView
+              result={result}
+              source={
+                resultChannel === 'text' ? message : resultChannel === 'email' ? emailSource : ''
+              }
+              showTextHighlights={resultChannel === 'text' || resultChannel === 'email'}
+            />
+          ) : null}
         </div>
       )}
     </main>

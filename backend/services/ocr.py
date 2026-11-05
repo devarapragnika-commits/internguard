@@ -24,23 +24,12 @@ from typing import TypedDict
 
 from backend.services.risk import score_message
 from backend.services.text_cleanup import clean_for_matching, swap_digits_between_letters
+from backend.services.text_highlights import fired_phrases
 
 MAX_IMAGE_BYTES = 5_000_000
 
 _HYPHEN_BREAK = re.compile(r"([A-Za-z])-\s*[\r\n]+\s*([A-Za-z])")
 _URL_START = re.compile(r"https?\s*:\s*/\s*/", re.IGNORECASE)
-_QUOTED = re.compile(r'"([^"]+)"')
-_ASKS_FOR = re.compile(r"\bAsks for (?:a|an) (.+)\.$")
-_URL = re.compile(r"https?://[^\s<>\"']+", re.IGNORECASE)
-_URL_FLAGS = {
-    "claimed_company_mismatch",
-    "suspicious_tld",
-    "insecure_link",
-    "extra_subdomains",
-    "new_domain",
-    "long_redirect",
-    "virustotal",
-}
 _WINDOWS_TESSERACT = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
 
@@ -86,7 +75,7 @@ def score_screenshot(data: bytes, reader=None) -> dict:
     scored["text"] = cleaned
     scored["image_width"] = int(page.get("width") or 0)
     scored["image_height"] = int(page.get("height") or 0)
-    scored["highlights"] = highlight_words(page.get("words") or [], _phrases(scored, cleaned))
+    scored["highlights"] = highlight_words(page.get("words") or [], fired_phrases(scored, cleaned))
     return scored
 
 
@@ -167,23 +156,6 @@ def highlight_words(words: list[OcrWord], phrases: list[str]) -> list[OcrWord]:
             if tokens[start : start + width] == parts:
                 chosen.update(range(start, start + width))
     return [words[index] for index in sorted(chosen)]
-
-
-def _phrases(result: dict, cleaned: str) -> list[str]:
-    found: list[str] = []
-    for reason in result.get("reasons", []):
-        found.extend(_QUOTED.findall(reason))
-        asked = _ASKS_FOR.search(reason)
-        if asked:
-            found.append(asked.group(1))
-    if _URL_FLAGS.intersection(result.get("flags", [])):
-        found.extend(match.group(0).rstrip(".,);]") for match in _URL.finditer(cleaned))
-    unique: list[str] = []
-    for phrase in found:
-        compact = " ".join(phrase.split())
-        if compact and compact not in unique:
-            unique.append(compact)
-    return unique
 
 
 def _repair_urls(text: str) -> str:

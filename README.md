@@ -174,6 +174,8 @@ Each slice is capped the way `Roadmap.txt` specifies, then divided by 110 and mu
 
 Bands are 0–19 low, 20–25 medium, and 26–100 high. Those cuts were calibrated on `data/messages.csv`. The previous high cut at 50 missed every labeled scam, and every legitimate row scored 0. Rubric weights are unchanged. A message with no link leaves URL risk at 0. If a URL lookup fails, the text score is kept and the reasons include "URL check was unavailable." Unknown domain age, redirects, and VirusTotal are not treated as risky.
 
+On a successful text or email analysis, `text_highlights` marks the phrases in the original source that produced each reason (the same flags as `score_message`). The Analyze page highlights those spans. Clicking a reason jumps to the phrase. A message with no flags has no highlights. Screenshot overlay boxes are unchanged. PDFs are not highlighted.
+
 ## Email headers and attachments
 
 `POST /analyze/email` accepts a raw RFC 822 message, or headers plus a snippet and attachment filenames. HTML is not rendered, remote images are not loaded, and attachments are not opened. The subject and snippet go through the same linguistic and payment checks. Links in the raw source go through the URL checks. Sender and attachment points are added in `score_message`, still divided by 110.

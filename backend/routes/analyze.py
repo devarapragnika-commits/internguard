@@ -8,6 +8,7 @@ from backend.services.mail import MAX_EMAIL_BYTES, score_email
 from backend.services.ocr import MAX_IMAGE_BYTES, OcrError, score_screenshot
 from backend.services.pdf_offer import MAX_PDF_BYTES, PdfError, score_pdf
 from backend.services.risk import score_message
+from backend.services.text_highlights import with_text_highlights
 
 router = APIRouter()
 
@@ -44,7 +45,7 @@ def analyze_text(body: AnalyzeTextBody) -> dict:
     message = body.text.strip()
     if not message:
         raise HTTPException(status_code=400, detail="Paste a message before analyzing.")
-    return score_message(message)
+    return with_text_highlights(message, score_message(message))
 
 
 @router.post("/analyze/image")
@@ -101,7 +102,9 @@ def analyze_email(body: AnalyzeEmailBody) -> dict:
         raise HTTPException(status_code=400, detail="Paste an email before analyzing.")
     if len(raw.encode("utf-8", errors="replace")) > MAX_EMAIL_BYTES:
         raise HTTPException(status_code=400, detail="That email is too large.")
-    return score_email(raw or None, headers=headers or None, snippet=snippet or None, attachments=attachments)
+    scored = score_email(raw or None, headers=headers or None, snippet=snippet or None, attachments=attachments)
+    source = raw or "\n".join(part for part in (headers, snippet) if part)
+    return with_text_highlights(source, scored)
 
 
 @router.post("/analyze/list")
