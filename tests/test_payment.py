@@ -70,6 +70,29 @@ class PaymentDetectorTests(unittest.TestCase):
             detect_payment_request(POLITE_FEE),
         )
 
+    def test_hindi_and_hinglish_fees_match_english_financial_slice(self):
+        english = detect_payment_request(POLITE_FEE)
+        hindi = detect_payment_request("इंटर्नशिप के लिए रजिस्ट्रेशन फीस भेजो।")
+        hinglish = detect_payment_request(
+            "Internship confirm karne ke liye registration fee bhejo."
+        )
+        mixed = detect_payment_request("Kindly pay the registration fee भेजो.")
+        for result in (english, hindi, hinglish, mixed):
+            self.assertEqual(result["financial_request_risk"], FINANCIAL_REQUEST_CAP)
+            self.assertTrue(result["flagged"])
+            self.assertTrue(result["reason"])
+        self.assertIn("registration fee", english["reason"])
+        self.assertIn("registration fee", hindi["reason"])
+        self.assertIn("registration fee", mixed["reason"])
+
+    def test_unpaid_hindi_offer_stays_at_zero(self):
+        result = detect_payment_request(
+            "यह इंटर्नशिप unpaid है। कोई रजिस्ट्रेशन फीस नहीं है। स्टाइपेंड महीने के अंत में मिलेगा।"
+        )
+        self.assertEqual(result["financial_request_risk"], 0)
+        self.assertFalse(result["flagged"])
+        self.assertEqual(result["reason"], "")
+
     def test_does_not_use_the_linguistic_detector(self):
         source = inspect.getsource(payment)
         self.assertNotIn("linguistic", source)

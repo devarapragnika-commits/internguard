@@ -177,3 +177,25 @@ class RiskScoreTests(unittest.TestCase):
         self.assertIn("registration fee", " ".join(result["reasons"]))
         self.assertIn("URL check was unavailable.", result["reasons"])
         self.assertIn("url_check_unavailable", result["flags"])
+
+    def test_hindi_and_mixed_fees_use_the_same_financial_slice(self):
+        hindi = "इंटर्नशिप के लिए रजिस्ट्रेशन फीस भेजो।"
+        mixed = "You are selected. Kindly pay the registration fee भेजो."
+        unpaid = "यह इंटर्नशिप unpaid है। कोई रजिस्ट्रेशन फीस नहीं है।"
+        english = score_message(FEE)
+        for text in (hindi, mixed):
+            result = score_message(text)
+            self.assertEqual(
+                result["slices"]["financial_request"]["points"],
+                english["slices"]["financial_request"]["points"],
+                text,
+            )
+            self.assertEqual(result["slices"]["financial_request"]["points"], 25, text)
+            self.assertIn(result["band"], ("medium", "high"), text)
+            self.assertTrue(any("fee" in reason.lower() for reason in result["reasons"]), text)
+        api = analyze_text(AnalyzeTextBody(text=hindi))
+        self.assertEqual(api["slices"]["financial_request"]["points"], 25)
+        self.assertIn(api["band"], ("medium", "high"))
+        unpaid_result = score_message(unpaid)
+        self.assertEqual(unpaid_result["slices"]["financial_request"]["points"], 0)
+        self.assertEqual(unpaid_result["band"], "low")

@@ -123,6 +123,37 @@ class LinguisticFeatureTests(unittest.TestCase):
         self.assertIn('"registration fee"', reason)
         self.assertNotIn('"fee"', reason)
 
+    def test_hindi_and_hinglish_phrases(self):
+        cases = [
+            ("Abhi apply karo.", "urgency", "abhi"),
+            ("Jaldi join karo.", "urgency", "jaldi"),
+            ("अभी आवेदन करो।", "urgency", "अभी"),
+            ("रजिस्ट्रेशन फीस भेजो।", "financial_pressure", "registration fee"),
+            ("OTP bhejo.", "credential_request", "OTP"),
+            ("ओटीपी भेजो।", "credential_request", "OTP"),
+            ("UPI bhejo.", "credential_request", "UPI"),
+            ("यूपीआई पिन भेजो।", "credential_request", "UPI"),
+            ("Kisi ko mat batana.", "secrecy", "kisi ko mat batana"),
+            ("किसी को मत बताना।", "secrecy", "किसी को मत बताना"),
+        ]
+        for text, signal, phrase in cases:
+            features = extract_linguistic_features(text)
+            self.assertEqual(features[signal]["value"], 1, text)
+            self.assertIn(phrase, features[signal]["reason"], text)
+
+    def test_mixed_english_and_hindi_fee(self):
+        features = extract_linguistic_features("Kindly pay the registration fee भेजो.")
+        self.assertEqual(features["financial_pressure"]["value"], 1)
+        self.assertIn("registration fee", features["financial_pressure"]["reason"])
+
+    def test_unpaid_hindi_offer_does_not_fire_fee_or_secrecy(self):
+        features = extract_linguistic_features(
+            "यह इंटर्नशिप unpaid है। कोई रजिस्ट्रेशन फीस नहीं है।"
+        )
+        self.assertEqual(features["financial_pressure"]["value"], 0)
+        self.assertEqual(features["secrecy"]["value"], 0)
+        self.assertEqual(features["credential_request"]["value"], 0)
+
     def test_does_not_call_a_language_model(self):
         source = inspect.getsource(linguistic)
         self.assertNotIn("openai", source.lower())

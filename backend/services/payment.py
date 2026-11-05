@@ -57,11 +57,23 @@ _RULES: list[_Rule] = [
     (re.compile(r"\bethereum\b|\beth\b"), "ethereum payment"),
     (re.compile(r"\busdt\b"), "USDT payment"),
     (re.compile(r"\bcrypto(?:currency)?\b"), "crypto payment"),
+    (re.compile(r"\bfees?\s+(?:bhejo|bhejna|bharo|bharni|do|dena)\b"), "fee"),
+    (re.compile(r"रजिस्ट्रेशन\s*फीस"), "registration fee"),
+    (re.compile(r"पंजीकरण\s*शुल्क"), "registration fee"),
+    (re.compile(r"ज्वाइनिंग\s*फीस"), "joining fee"),
+    (re.compile(r"जॉइनिंग\s*फीस"), "joining fee"),
+    (re.compile(r"ट्रेनिंग\s*फीस"), "training fee"),
+    (re.compile(r"प्रोसेसिंग\s*फीस"), "processing fee"),
+    (re.compile(r"आवेदन\s*शुल्क"), "application fee"),
+    (re.compile(r"सुरक्षा\s*जमा"), "security deposit"),
+    (re.compile(r"फीस"), "fee"),
+    (re.compile(r"शुल्क"), "fee"),
 ]
 
 _NEGATION_BEFORE = re.compile(
-    r"\b(?:no|not|without|never|zero)\b(?:\s+\w+){0,3}\s*$"
+    r"(?:(?:\b(?:no|not|without|never|zero|nahi+|nahin|bina)\b)|नहीं|बिना)(?:\s+\w+){0,3}\s*$"
 )
+_NEGATION_AFTER = re.compile(r"^\s*(?:(?:nahi+|nahin)\b|नहीं)")
 
 
 class PaymentResult(TypedDict):
@@ -112,13 +124,16 @@ def _prepare(text: str) -> str:
     text = clean_for_matching(text)
     text = text.replace("\u2019", "'").replace("\u2018", "'")
     text = text.lower()
-    text = re.sub(r"[^a-z0-9$%₹'./]+", " ", text)
+    text = re.sub(r"[^a-z0-9$%₹'./\u0900-\u0963\u0966-\u097f]+", " ", text)
     return re.sub(r"\s+", " ", text).strip()
 
 
-def _negated(text: str, start: int) -> bool:
+def _negated(text: str, start: int, end: int | None = None) -> bool:
     prefix = text[max(0, start - 48) : start]
-    return _NEGATION_BEFORE.search(prefix) is not None
+    if _NEGATION_BEFORE.search(prefix):
+        return True
+    suffix = text[(end if end is not None else start) : (end if end is not None else start) + 32]
+    return _NEGATION_AFTER.search(suffix) is not None
 
 
 def _matching_requests(text: str) -> list[str]:
@@ -127,7 +142,7 @@ def _matching_requests(text: str) -> list[str]:
     spans: list[tuple[int, int, str]] = []
     for pattern, label in _RULES:
         for match in pattern.finditer(text):
-            if _negated(text, match.start()):
+            if _negated(text, match.start(), match.end()):
                 continue
             spans.append((match.start(), match.end(), label))
     visible: list[tuple[int, str]] = []
