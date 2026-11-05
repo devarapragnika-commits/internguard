@@ -1,6 +1,6 @@
 // Past checks stay in this browser's localStorage. Only the score, band,
 // reasons, recommendation, slices, and a short excerpt are kept. The full
-// message, screenshots, and raw emails are never stored.
+// message, screenshots, PDFs, and raw emails are never stored.
 
 const STORAGE_KEY = 'internguard.history.v1'
 const MAX_ENTRIES = 200

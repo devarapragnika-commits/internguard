@@ -206,6 +206,14 @@ Automated tests use local LinkedIn-style and Indeed-style HTML fixtures. They do
 
 An empty file, a non-image, or a failed read returns a clear error and no score. Tests do not call Tesseract or a paid API.
 
+## PDF offer letters
+
+`POST /analyze/pdf` accepts one PDF. The server reads visible text and http(s) link URIs, then passes that to `score_message`. JavaScript in the PDF is not executed. Remote images are not fetched. Image-only scans are not OCR'd. At most the first eight pages are read.
+
+The response is the same score, band, reasons, and recommendation as pasted text, plus a short excerpt. The Analyze page can upload a PDF. History stores the excerpt, not the file.
+
+A fee PDF scores like the pasted registration-fee fixture. An unpaid offer PDF stays low. A file that is not a PDF returns a clear error. Tests use fixture PDFs under `tests/fixtures/` and do not call a paid API.
+
 ## Hindi and mixed-language messages
 
 Linguistic and payment checks keep Devanagari text and also match common Roman Hindi spelling. `score_message` is still the only scorer. There is no translation API.

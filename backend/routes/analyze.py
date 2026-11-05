@@ -1,4 +1,4 @@
-"""Paste-text, screenshot, email, and Gmail-list analysis. Each returns the combined risk score."""
+"""Paste-text, screenshot, PDF, email, and Gmail-list analysis. Each returns the combined risk score."""
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from backend.services.gmail_list import MAX_LIST_MESSAGES, score_list_messages
 from backend.services.mail import MAX_EMAIL_BYTES, score_email
 from backend.services.ocr import MAX_IMAGE_BYTES, OcrError, score_screenshot
+from backend.services.pdf_offer import MAX_PDF_BYTES, PdfError, score_pdf
 from backend.services.risk import score_message
 
 router = APIRouter()
@@ -61,6 +62,30 @@ async def analyze_image(file: UploadFile | None = File(default=None)) -> dict:
     try:
         return score_screenshot(data)
     except OcrError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/analyze/pdf")
+async def analyze_pdf(file: UploadFile | None = File(default=None)) -> dict:
+    if file is None:
+        raise HTTPException(status_code=400, detail="Choose a PDF before analyzing.")
+    filename = (file.filename or "").lower()
+    content_type = (file.content_type or "").lower()
+    allowed_type = (
+        not content_type
+        or content_type in {"application/pdf", "application/octet-stream"}
+        or filename.endswith(".pdf")
+    )
+    if not allowed_type:
+        raise HTTPException(status_code=400, detail="Upload a PDF file.")
+    data = await file.read(MAX_PDF_BYTES + 1)
+    if not data:
+        raise HTTPException(status_code=400, detail="Choose a PDF before analyzing.")
+    if len(data) > MAX_PDF_BYTES:
+        raise HTTPException(status_code=400, detail="That PDF is too large.")
+    try:
+        return score_pdf(data)
+    except PdfError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 

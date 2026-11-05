@@ -38,4 +38,5 @@ export const CHANNEL_LABELS = {
   text: 'Pasted text',
   screenshot: 'Screenshot',
   email: 'Email',
+  pdf: 'PDF',
 }
