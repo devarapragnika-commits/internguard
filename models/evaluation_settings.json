@@ -18,5 +18,6 @@
     "medium_at": 20,
     "high_at": 26
   },
-  "url_lookups": "WHOIS and redirects are stubbed so the table can be regenerated offline"
+  "url_lookups": "WHOIS and redirects are stubbed so the table can be regenerated offline",
+  "distilbert": "comparison only; not used by analyze routes"
 }

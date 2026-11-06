@@ -1,0 +1,3 @@
+# Comparison-only DistilBERT eval. Not required for the Analyze API.
+torch>=2.2.0
+transformers>=4.40.0

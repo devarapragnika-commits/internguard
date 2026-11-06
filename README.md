@@ -104,7 +104,7 @@ python -m backend.ml.evaluate_scorer
 python -m backend.ml.run_demo
 ```
 
-`evaluate_scorer` writes `models/evaluation.csv` for the three baselines, the previous 20/50 rubric cuts, and the live rubric, including scam precision, scam recall, and the false-positive rate on legitimate rows. It also writes `models/band_calibration.csv` for other cuts on the same scores. `run_demo` scores the three messages in `demos/` on text, a link inside the message, a generated screenshot, and a `.eml` fixture. Screenshot scoring is skipped if Tesseract is not installed.
+`evaluate_scorer` writes `models/evaluation.csv` for the three TF-IDF baselines, DistilBERT, the previous 20/50 rubric cuts, and the live rubric, including scam precision, scam recall, and the false-positive rate on legitimate rows. DistilBERT is a comparison model only. It does not replace `score_message`. Install extras first with `pip install -r requirements-ml.txt`. The command also writes `models/band_calibration.csv` for other cuts on the same scores. `run_demo` scores the three messages in `demos/` on text, a link inside the message, a generated screenshot, and a `.eml` fixture. Screenshot scoring is skipped if Tesseract is not installed.
 
 The writeup is `docs/demo-report.md`. The comparison table in that file must match `models/evaluation.csv` after a fresh run. Expected bands are in `demos/expected.json`.
 

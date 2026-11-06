@@ -10,6 +10,12 @@ from backend.ml.train_baselines import load_messages
 from tests.test_train_baselines import _write_csv
 
 
+def _stub_distilbert(x_train, y_train, x_test, n_labels, seed=42):
+    labels = [int(value) for value in y_train]
+    majority = max(set(labels), key=labels.count)
+    return [majority] * len(x_test)
+
+
 def test_evaluate_scorer_writes_rubric_and_model_rows(tmp_path: Path) -> None:
     rows: list[tuple[str, str]] = []
     for index in range(12):
@@ -20,12 +26,13 @@ def test_evaluate_scorer_writes_rubric_and_model_rows(tmp_path: Path) -> None:
     models_dir = tmp_path / "models"
     _write_csv(data_path, rows)
 
-    table = evaluate_scorer(data_path, models_dir)
+    table = evaluate_scorer(data_path, models_dir, distilbert_predict=_stub_distilbert)
 
     assert list(table["method"]) == [
         "tfidf_logreg",
         "random_forest",
         "xgboost",
+        "distilbert",
         "rubric_old_20_50",
         "rubric",
     ]
@@ -58,3 +65,12 @@ def test_demo_writes_expected_bands() -> None:
     for item in payload["results"]:
         assert item["channels"]["link"]["band"] == item["channels"]["text"]["band"]
         assert "band" in item["channels"]["email"]
+
+
+def test_analyze_code_does_not_call_the_transformer() -> None:
+    banned = ("transformers", "distilbert", "DistilBert")
+    for root in (Path("backend/routes"), Path("backend/services")):
+        for path in root.rglob("*.py"):
+            text = path.read_text(encoding="utf-8")
+            for token in banned:
+                assert token not in text, f"{path} mentions {token}"
