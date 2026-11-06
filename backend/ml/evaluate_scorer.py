@@ -1,9 +1,9 @@
-"""Compare the live rubric with the three saved baseline models.
+"""Compare the live rubric with TF-IDF baselines and DistilBERT.
 
 The product score is the rubric in ``score_message``, not a model
-probability. This command uses the same stratified split as
-``train_baselines`` (seed 42, test size 0.2) and writes
-``models/evaluation.csv``.
+probability. DistilBERT is a comparison row only. This command uses the
+same stratified split as ``train_baselines`` (seed 42, test size 0.2)
+and writes ``models/evaluation.csv``.
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 
+from backend.ml.distilbert import DistilBertError, predict_distilbert
 from backend.ml.train_baselines import (
     DEFAULT_DATA_PATH,
     DEFAULT_MODELS_DIR,
@@ -66,7 +67,35 @@ def _false_positive_rate(y_true, y_pred, legit_index: int, scam_index: int) -> f
     return _rate(y_true, y_pred, legit_index, scam_index)
 
 
-def evaluate_scorer(data_path: Path, models_dir: Path) -> pd.DataFrame:
+def _metric_row(
+    method: str,
+    y_test,
+    predicted,
+    scam_index: int,
+    legit_index: int,
+    version: str,
+) -> dict[str, object]:
+    scores = evaluate(y_test, predicted, scam_index)
+    return {
+        "method": method,
+        "accuracy": round(scores["accuracy"], 4),
+        "f1_macro": round(scores["f1_macro"], 4),
+        "scam_precision": round(scores["scam_precision"], 4),
+        "scam_recall": round(scores["scam_recall"], 4),
+        "legitimate_false_positive_rate": round(
+            _false_positive_rate(y_test, predicted, legit_index, scam_index),
+            4,
+        ),
+        "dataset_version": version,
+        "seed": SEED,
+    }
+
+
+def evaluate_scorer(
+    data_path: Path,
+    models_dir: Path,
+    distilbert_predict=predict_distilbert,
+) -> pd.DataFrame:
     frame = load_messages(data_path)
     version = dataset_version(data_path, len(frame))
     texts = frame["text"].tolist()
@@ -88,22 +117,27 @@ def evaluate_scorer(data_path: Path, models_dir: Path) -> pd.DataFrame:
     for name, pipeline in build_models().items():
         pipeline.fit(x_train, y_train)
         predicted = pipeline.predict(x_test)
-        scores = evaluate(y_test, predicted, scam_index)
         rows.append(
-            {
-                "method": name,
-                "accuracy": round(scores["accuracy"], 4),
-                "f1_macro": round(scores["f1_macro"], 4),
-                "scam_precision": round(scores["scam_precision"], 4),
-                "scam_recall": round(scores["scam_recall"], 4),
-                "legitimate_false_positive_rate": round(
-                    _false_positive_rate(y_test, predicted, legit_index, scam_index),
-                    4,
-                ),
-                "dataset_version": version,
-                "seed": SEED,
-            }
+            _metric_row(name, y_test, predicted, scam_index, legit_index, version)
         )
+
+    distilbert_pred = distilbert_predict(
+        x_train,
+        y_train,
+        x_test,
+        n_labels=len(labels),
+        seed=SEED,
+    )
+    rows.append(
+        _metric_row(
+            "distilbert",
+            y_test,
+            distilbert_pred,
+            scam_index,
+            legit_index,
+            version,
+        )
+    )
 
     with patch.object(url_features, "_lookup_whois", return_value=datetime(2018, 1, 15)):
         with patch.object(
@@ -165,6 +199,7 @@ def evaluate_scorer(data_path: Path, models_dir: Path) -> pd.DataFrame:
                 "previous_bands": {"medium_at": PREVIOUS_MEDIUM_AT, "high_at": PREVIOUS_HIGH_AT},
                 "live_bands": {"medium_at": MEDIUM_AT, "high_at": HIGH_AT},
                 "url_lookups": "WHOIS and redirects are stubbed so the table can be regenerated offline",
+                "distilbert": "comparison only; not used by analyze routes",
             },
             indent=2,
         ),
@@ -176,7 +211,7 @@ def evaluate_scorer(data_path: Path, models_dir: Path) -> pd.DataFrame:
 def main() -> None:
     try:
         table = evaluate_scorer(DEFAULT_DATA_PATH, DEFAULT_MODELS_DIR)
-    except DatasetError as exc:
+    except (DatasetError, DistilBertError) as exc:
         print(exc, file=sys.stderr)
         raise SystemExit(1) from exc
     print(table.to_string(index=False))

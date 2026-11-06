@@ -149,6 +149,9 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
+# DistilBERT weights (comparison eval only; not the live scorer)
+models/distilbert/
+
 # App local data
 data/phishing-website-screenshots/
 

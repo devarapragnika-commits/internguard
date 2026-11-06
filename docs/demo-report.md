@@ -14,7 +14,7 @@ Dataset version: **sha256:e08a9a505a4b:rows:348**. Seed 42. Stratified 80/20 spl
 
 Students get internship and job offers on WhatsApp, Telegram, LinkedIn, email, and screenshots. Many of those offers ask for a fee, a gift card, or a lookalike link. A binary "scam / not scam" label is not enough. InternGuard returns one 0–100 score, a band, the flags that fired, and a recommendation, using the same rubric for pasted text, a screenshot, a link inside the message, and a raw email.
 
-The live product is that rubric. The three TF-IDF models are a baseline for the report, not the score shown in the app.
+The live product is that rubric. The three TF-IDF models and DistilBERT are comparison rows for the report, not the score shown in the app.
 
 ## 2. Related detectors
 
@@ -62,10 +62,11 @@ From `models/evaluation.csv`. Scam precision and recall are for the **scam** cla
 | TF-IDF + Logistic Regression | 0.9857 | 0.9491 | 1.0000 | 1.0000 | 0.0 |
 | Random Forest | 0.9571 | 0.9044 | 1.0000 | 0.8750 | 0.0 |
 | XGBoost | 0.9429 | 0.7978 | 0.9333 | 0.8750 | 0.0 |
+| DistilBERT (comparison only) | 0.9429 | 0.8590 | 0.8889 | 1.0000 | 0.02 |
 | Rubric old bands (20 / 50) | 0.7286 | 0.3516 | 0.0000 | 0.0000 | 0.0 |
 | Rubric (live, 20 / 26) | 0.7857 | 0.4518 | 0.8333 | 0.3125 | 0.0 |
 
-The models look strong because many contract rows repeat the same templates across train and test. The rubric does not memorize those templates.
+The models look strong because many contract rows repeat the same templates across train and test. DistilBERT is in that comparison group: it is trained on the same split for this table, and Analyze still returns the rubric. The rubric does not memorize those templates.
 
 ### 5.1b Band cuts
 
@@ -78,7 +79,7 @@ From `models/band_calibration.csv`, same split and the same 0–100 scores. Only
 | 20 | 23 | 0.8286 | 0.5136 | 0.8889 | 0.5000 | 0.0 |
 | 10 | 20 | 0.8286 | 0.5136 | 0.8889 | 0.5000 | 0.0 |
 
-Every one of the 247 legitimate labeled rows scores 0, so no cut above 0 raises the legitimate false-positive rate on this file. No labeled scam reached 50. The live product uses **26 for high** and **20 for medium**: scam recall on the held-out split rises from 0.0000 to 0.3125, and the sandbox medium fixture (score 23) stays medium. Cuts at 23 or 20 raise recall further to 0.5000 but would turn that 23-point medium demo into high. Slice weights were left as they are; the table does not show a reason to retune them.
+Every one of the 247 legitimate labeled rows scores 0, so no cut above 0 raises the legitimate false-positive rate on this file. No labeled scam reached 50. The live product uses **26 for high** and **20 for medium**: scam recall on the held-out split rises from 0.0000 to 0.3125, and the sandbox medium fixture (score 23) stays medium. Cuts at 23 or 20 raise recall further to 0.5000 but would turn that 23-point medium demo into high. Slice weights were left as they are; the table does not show a reason to retune them. DistilBERT recalled every held-out scam row and marked 2% of held-out legitimate rows as scam.
 
 The demo messages below use fee language and lookalike links, which is what the product is built to catch.
 
@@ -124,7 +125,7 @@ Expected bands are in `demos/expected.json`. The subtle demo is now **high** bec
 - Abbreviations that are not in `backend/data/verified_companies.csv` do not get company-list points. Names shorter than four letters are ignored by the fuzzy check, so IBM-style shorts still need an alias in the CSV.
 - WHOIS, redirects, and VirusTotal can time out. The text score is kept and the reasons include "URL check was unavailable." Unknown lookups are not scored as risky.
 - Most labeled scam rows are templated contracts. After moving high from 50 to 26, held-out scam recall is 0.3125; 11 of 16 held-out scams still score below 26. The saved F1 on the models is not a field trial.
-- DistilBERT was not trained.
+- DistilBERT is trained only for this comparison table. It is not hosted as an API and does not score Analyze requests.
 - Screenshot OCR needs the Tesseract program, not only the Python package.
 
 ## 7. Email privacy
@@ -147,12 +148,12 @@ The paste-email API is a local demo of those rules. It is not a published inbox 
 2. InternGuard returns one 0–100 score and the reasons, not only "scam."
 3. Four channels share one rubric.
 4. Dataset: 348 rows, version sha256:e08a9a505a4b, suspicious now 20.
-5. Models vs rubric table, plus old 20/50 vs live 20/26 bands.
+5. Models vs rubric table (TF-IDF, DistilBERT, old 20/50 vs live 20/26). Models look strong on templates; the product is the rubric.
 6. Demo: legitimate 0 low.
 7. Demo: obvious scam 53 high (email 75).
 8. Demo: polite joining fee plus `.tk` link, 41 high after calibration (was medium).
 9. Privacy: no render, no remote images, attachments not opened.
-10. Limits: company-list gaps, WHOIS timeouts, Tesseract, no DistilBERT.
+10. Limits: company-list gaps, WHOIS timeouts, Tesseract, DistilBERT is comparison-only.
 
 ## 9. Live-demo script
 
