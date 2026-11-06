@@ -14,9 +14,17 @@ Open [http://localhost:5173](http://localhost:5173). The API is at [http://127.0
 
 ## Deploy
 
-The production Docker image builds the Analyze page and serves it from the same process as the API (`GET /` is the site, `GET /health` is the JSON check). Set `VITE_API_BASE` empty at build time so the browser calls `/analyze` on the same host.
+The Analyze page and the API share one URL. `GET /` is the website. `GET /health` is the JSON check.
 
-On [Render](https://render.com), create a **Web Service** from this GitHub repo, Docker runtime, health check `/health`. `render.yaml` in the repo root is the blueprint. The public URL is the website.
+If Render shows JSON at `/`, the service is running the API without a frontend build. In the service **Settings**:
+
+- **Language / Runtime:** Python 3
+- **Branch:** `serve-analyze-page` (or `main` after that branch is merged)
+- **Build Command:** `npm ci --prefix frontend && npm run build --prefix frontend && pip install -r requirements.txt`
+- **Start Command:** `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+- **Environment:** `PYTHON_VERSION=3.12.8`, `NODE_VERSION=20`, `VITE_API_BASE` empty
+
+Then **Manual Deploy → Deploy latest commit**. The site is `https://YOUR-SERVICE.onrender.com/` — there is no extra `/app` path.
 
 ## Settings
 

@@ -1,13 +1,18 @@
 services:
   - type: web
     name: internguard
-    runtime: docker
-    dockerfilePath: ./Dockerfile
-    dockerContext: .
+    runtime: python
+    plan: free
+    buildCommand: npm ci --prefix frontend && npm run build --prefix frontend && pip install -r requirements.txt
+    startCommand: uvicorn backend.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
-      - key: TESSERACT_CMD
-        value: tesseract
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: NODE_VERSION
+        value: "20"
+      - key: VITE_API_BASE
+        value: ""
       - key: ANALYZE_RATE_LIMIT
         value: "30"
       - key: ANALYZE_RATE_WINDOW

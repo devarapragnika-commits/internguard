@@ -21,6 +21,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend ./backend
+COPY frontend/dist ./frontend/dist
 COPY --from=frontend /src/dist ./frontend/dist
 
 ENV PYTHONUNBUFFERED=1
