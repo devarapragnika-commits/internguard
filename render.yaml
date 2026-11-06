@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: internguard
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: TESSERACT_CMD
+        value: tesseract
+      - key: ANALYZE_RATE_LIMIT
+        value: "30"
+      - key: ANALYZE_RATE_WINDOW
+        value: "60"
+      - key: URL_CACHE_TTL
+        value: "3600"

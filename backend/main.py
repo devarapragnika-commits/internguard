@@ -1,12 +1,14 @@
 """InternGuard HTTP API."""
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 
-from backend.config import CORS_ORIGIN_REGEX, get_cors_origins
+from backend.config import CORS_ORIGIN_REGEX, ROOT_DIR, get_cors_origins
 from backend.routes.analyze import router as analyze_router
 from backend.routes.health import router as health_router
 from backend.routes.inbox import router as inbox_router
@@ -37,3 +39,24 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(analyze_router)
 app.include_router(inbox_router)
+
+_FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
+_FRONTEND_ASSETS = _FRONTEND_DIST / "assets"
+_API_PREFIXES = ("analyze/", "health", "inbox", "docs", "redoc", "openapi.json")
+
+if _FRONTEND_ASSETS.is_dir():
+    app.mount("/assets", StaticFiles(directory=_FRONTEND_ASSETS), name="assets")
+
+
+@app.get("/{full_path:path}")
+def frontend_file(full_path: str):
+    if not full_path or full_path.startswith(_API_PREFIXES):
+        raise HTTPException(status_code=404, detail="Not found")
+    target = (_FRONTEND_DIST / full_path).resolve()
+    try:
+        target.relative_to(_FRONTEND_DIST.resolve())
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail="Not found") from exc
+    if target.is_file():
+        return FileResponse(target)
+    raise HTTPException(status_code=404, detail="Not found")

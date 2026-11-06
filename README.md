@@ -12,6 +12,12 @@ docker compose up --build
 
 Open [http://localhost:5173](http://localhost:5173). The API is at [http://127.0.0.1:8000](http://127.0.0.1:8000). The API image includes Tesseract, so screenshot upload works without a separate install. Analyze routes return HTTP 429 with a clear message if one client sends too many requests.
 
+## Deploy
+
+The production Docker image builds the Analyze page and serves it from the same process as the API (`GET /` is the site, `GET /health` is the JSON check). Set `VITE_API_BASE` empty at build time so the browser calls `/analyze` on the same host.
+
+On [Render](https://render.com), create a **Web Service** from this GitHub repo, Docker runtime, health check `/health`. `render.yaml` in the repo root is the blueprint. The public URL is the website.
+
 ## Settings
 
 | Setting | Where | Default | Purpose |
